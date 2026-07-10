@@ -34,10 +34,13 @@ def load_output(path):
     return m
 
 def main():
+    # 可指定批次目錄與前綴：recover_batches.py [dir] [prefix]（預設 EGA 的 batch/b）
+    bdir = sys.argv[1] if len(sys.argv) > 1 else 'translation/batch'
+    prefix = sys.argv[2] if len(sys.argv) > 2 else 'b'
     rows_report = []
-    for src in sorted(glob.glob('translation/batch/b[0-9][0-9].tsv')):
+    for src in sorted(glob.glob(f'{bdir}/{prefix}[0-9][0-9].tsv')):
         b = os.path.basename(src)[:-4]
-        out = f'translation/batch/{b}.out.tsv'
+        out = f'{bdir}/{b}.out.tsv'
         if not os.path.exists(out):
             continue
         omap = load_output(out)
@@ -56,7 +59,7 @@ def main():
                 if zh.strip() and zh.strip() != k.strip():
                     translated += 1
             fixed.append(f"{k}\t{zh}")
-        with open(f'translation/batch/{b}.fix.tsv', 'w', encoding='utf-8') as f:
+        with open(f'{bdir}/{b}.fix.tsv', 'w', encoding='utf-8') as f:
             f.write('\n'.join(fixed) + '\n')
         pct = 100 * translated // max(1, len(src_keys))
         rows_report.append((b, len(src_keys), translated, pct))
