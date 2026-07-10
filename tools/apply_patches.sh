@@ -22,12 +22,12 @@ if [ ! -d "$SRC" ]; then
   git -C "$SRC" checkout -f "$UPSTREAM"
 fi
 
-# 整檔新檔(存在才 cp;開發初期可能還沒有)
-for nf in "$HERE"/patches/*.newfile; do
-  [ -e "$nf" ] || continue
-  dest="$SRC/$(basename "${nf%.newfile}" | sed 's#@#/#g')"
-  echo ">> 新檔 -> $dest"; mkdir -p "$(dirname "$dest")"; cp "$nf" "$dest"
-done
+# 整檔新檔（VGA/SCI 軌的 GfxFontChinese）
+if [ -f "$HERE/patches/fontchinese_sci.h" ]; then
+  echo ">> 新檔 -> engines/sci/graphics/fontchinese.{h,cpp}"
+  cp "$HERE/patches/fontchinese_sci.h"   "$SRC/engines/sci/graphics/fontchinese.h"
+  cp "$HERE/patches/fontchinese_sci.cpp" "$SRC/engines/sci/graphics/fontchinese.cpp"
+fi
 
 # 編號 patch(依序;存在才套)
 shopt -s nullglob
