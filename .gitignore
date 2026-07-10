@@ -1,0 +1,36 @@
+# 完整遊戲包/原始遊戲資源不上傳（CLAUDE.md：github 只放 patch-only）
+dist-all/
+*.7z
+*.zip
+*.rar
+*.img
+LSL.zip
+
+# 抽字/建置中間產物
+extract/*/
+build/
+scummvm-src/
+*.o
+*.so
+*.dylib
+*.exe
+*.dll
+*.AppImage
+*.dmg
+*.apk
+*.tar.gz
+*.tar.zst
+
+# 遊戲原始資源（避免誤入版控）
+RESOURCE.0*
+VOL.*
+LOGDIR
+PICDIR
+VIEWDIR
+SNDDIR
+
+# 暫存
+*.tmp
+*.bak
+.venv/
+__pycache__/
