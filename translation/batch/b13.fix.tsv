@@ -1,0 +1,120 @@
+Of course, your feelings of success are short-lived, since this is where Ken Williams has to tell you about our soon-to-be-released sequel.\n\nHey, Ken! Come here, and give 'em your pitch...	當然，你的勝利快感短暫得很，因為這裡非得讓肯威廉斯跟你聊聊我們即將推出的續作。\n\n喂，肯！過來，給他們推銷一下…
+"Hi, folks! Remember, coming to this very computer Real Soon Now, is the next installment in the saga of Larry Laffer, traveling software salesman. I'd tell you the name now, but we haven't made one up yet!\n\n(Be sure to pick up a few extra copies, just in case our disk copier is screwed up again!)"	"嗨，各位！記住，很快就要在這部電腦上推出 Larry Laffer 旅行推銷員傳奇的下一章了。我很想現在就告訴你片名，可我們還沒想好呢！\n\n(最好多買幾份，免得我們的軟碟複製機又出問題!)"
+Oh, wait. We almost forget to tell you how well you played.	噢，等等。我們差點忘了評評你玩得怎樣。
+You can't bear the thought of deflating your new friend, so you don't!	你捨不得戳破你新交的朋友，所以作罷。
+What fun is an uninflated inflatable doll?	充氣娃娃沒氣，還有什麼意思？
+...thanks for playing, and be sure to tell each and every one of your friends to buy their own personal copy of this game.	…感謝遊玩，別忘了跟你每一個朋友吹捧這款遊戲，叫他們去買。
+Move inside the closet.	鑽進衣櫃裡。
+You played ok, I guess!	嘛，你玩得還可以啦！
+On behalf of Mark and Sandy, Al and Marg, Jeff and Chris, Russ and Kim, Larry and Bob, Ken and Roberta, Bob and Marilyn and/or Bob and Jeannine, John and Mary, Bob and Carol and Ted and Alice...	代表 Mark 和 Sandy、Al 和 Marg、Jeff 和 Chris、Russ 和 Kim、Larry 和 Bob、Ken 和 Roberta、Bob 和 Marilyn 或/和 Bob 和 Jeannine、John 和 Mary、Bob 和 Carol 和 Ted 和 Alice…
+Don't you find it difficult to have a meaningful relationship with latex?	你不覺得跟橡膠娃娃建立有意義的關係很難嗎？
+OK.	OK.
+Love ya, baby!	寶貝，愛死你了！
+Sorry. One's your limit!	抱歉。只有一個是你的極限！
+You don't have time to rest!	你沒有時間休息！
+Perhaps if you first established mouth/latex contact...	說不定先來個嘴對橡膠的接觸…
+Picking up the corner of the expensive, vinyl, zebra-skin bedspread, you discover...	你掀起那張昂貴的乙烯基斑馬紋床罩一角，發現…
+...nothing.	…什麼都沒有。
+That's not what she's for, Larry.	那不是她的用途，Larry。
+...and that's exactly the way she used to look!	…這正是她從前的樣子！
+Ladies and gentlemen...\n\nMr. Ken Williams!	女士們、先生們…\n\n肯威廉斯先生！
+_	_
+LLLLL	LLLLL
+New room:	New room:
+X coordinate:	X coordinate:
+Y coordinate:	Y coordinate:
+Object number:	Object number:
+Flag number:	Flag number:
+New value:	New value:
+You gottum, Larry.	你搞定了，Larry。
+Variable number:	Variable number:
+Variable %v45 = %v46	Variable %v45 = %v46
+Flag %v45 set	Flag %v45 set
+Flag %v45 not set	Flag %v45 not set
+New priority:	New priority:
+Object %v46 is in room %v45.	Object %v46 is in room %v45.
+%v45|3/%v46|3	%v45|3/%v46|3
+Room %v0|3	Room %v0|3
+%v45|2  %o45	%v45|2  %o45
+Number  Name of Object	Number  Name of Object
+%v8 memory pages left.	%v8 memory pages left.
+Unknown word:  "	Unknown word:  "
+H	H
+increment	increment
+decrement	decrement
+assignn	assignn
+assignv	assignv
+addn	addn
+addv	addv
+subn	subn
+subv	subv
+lindirectv	lindirectv
+rindirect	rindirect
+lindirectn	lindirectn
+set	set
+reset	reset
+toggle	toggle
+set.v	set.v
+reset.v	reset.v
+toggle.v	toggle.v
+new.room	new.room
+new.room.v	new.room.v
+load.logics	load.logics
+load.logics.v	load.logics.v
+call	call
+call.v	call.v
+load.pic	load.pic
+draw.pic	draw.pic
+show.pic	show.pic
+discard.pic	discard.pic
+overlay.pic	overlay.pic
+show.pri.screen	show.pri.screen
+load.view	load.view
+load.view.v	load.view.v
+discard.view	discard.view
+animate.obj	animate.obj
+unanimate.all	unanimate.all
+draw	draw
+erase	erase
+position	position
+position.v	position.v
+get.posn	get.posn
+reposition	reposition
+set.view	set.view
+set.view.v	set.view.v
+set.loop	set.loop
+set.loop.v	set.loop.v
+fix.loop	fix.loop
+release.loop	release.loop
+set.cel	set.cel
+set.cel.v	set.cel.v
+last.cel	last.cel
+current.cel	current.cel
+current.loop	current.loop
+current.view	current.view
+number.of.loops	number.of.loops
+set.priority	set.priority
+set.priority.v	set.priority.v
+release.priority	release.priority
+get.priority	get.priority
+stop.update	stop.update
+start.update	start.update
+force.update	force.update
+ignore.horizon	ignore.horizon
+observe.horizon	observe.horizon
+set.horizon	set.horizon
+object.onWater	object.onWater
+object.on.land	object.on.land
+object.on.anything	object.on.anything
+ignore.objs	ignore.objs
+observe.objs	observe.objs
+distance	distance
+stop.cycling	stop.cycling
+start.cycling	start.cycling
+normal.cycle	normal.cycle
+end.of.loop	end.of.loop
+reverse.cycle	reverse.cycle
+reverse.loop	reverse.loop
+cycle.time	cycle.time
+stop.motion	stop.motion
+start.motion	start.motion

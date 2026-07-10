@@ -1,0 +1,81 @@
+1	Erase(%v18):%m26	Erase(%v18):%m26
+2	AnimateObj(%v18):%m26	AnimateObj(%v18):%m26
+3	Print(%v18): no message%m25	Print(%v18): no message%m25
+4	Bad test: %v18%m25	Bad test: %v18%m25
+5	Bad action: %v18%m25	Bad action: %v18%m25
+6	StartUpdate(%v18):%m28	StartUpdate(%v18):%m28
+7	DrawPic(%v18):%m32	DrawPic(%v18):%m32
+8	Draw(%v18):%m26	Draw(%v18):%m26
+9	Draw(%v18):%m31	Draw(%v18):%m31
+10	DiscardPic(%v18):%m32	DiscardPic(%v18):%m32
+11	SetScanStart() already active\nin logic %v18.%m25	SetScanStart() already active\nin logic %v18.%m25
+12	Get(%v18) or Put(%v18):%m26	Get(%v18) or Put(%v18):%m26
+13	\nPress ESC to quit.	\n按 ESC 結束。
+14	%m27.%m25	%m27.%m25
+15	\nBad object number	\n物件編號錯誤
+16	%m27 or object not drawn.%m25	%m27 或物件未繪製。%m25
+17	\nView not 	\n檢視未
+18	%m29loaded.%m25	%m29載入。%m25
+19	%m29set.%m25	%m29設定。%m25
+20	Picture not loaded.%m25	圖片未載入。%m25
+21	Leisure Suit Larry in	Leisure Suit Larry in
+22	the Land of the Lounge Lizards	the Land of the Lounge Lizards
+23	KEYBOARD COMMANDS	鍵盤操作
+24	Use arrows or number keys to move	使用方向鍵或數字鍵移動
+25	Larry.	Larry。
+26	Press ESC to use the menus.	按 ESC 開啟選單。
+27	Press ENTER to choose from a menu,	按 ENTER 選擇選單項目，
+28	or ESC to return to the game.	或按 ESC 返回遊戲。
+29	Some menu choices list a function key	有些選單項目列出功能鍵
+30	"shortcut" beside their name.	「快捷鍵」在名稱旁。
+31	For a Hint Book, call (209) 683-6858.	需要提示手冊，請撥 (209) 683-6858。
+32	 (For a good time, call the author!)	 （尋求刺激，請聯絡作者！）
+33	JOYSTICK COMMANDS	操縱桿操作
+34	Point joystick in desired direction	將操縱桿指向想要的方向
+35	to move Larry.	以移動 Larry。
+36	Press top button to use the menus.	按上面的按鈕開啟選單。
+37	Press other button to see the status	按其他按鈕查看狀態
+38	screen.	畫面。
+39	MOUSE COMMANDS	滑鼠操作
+40	Put cursor where you want Larry to	將游標放在你想讓 Larry
+41	go, then click the button.	去的地方，然後點擊按鈕。
+42	Press right button to use menus.	按右鍵開啟選單。
+43	Press left button in the window	在視窗標題列
+44	bar to use menus.	按左鍵開啟選單。
+45	Press any key to return to game.	按任意鍵返回遊戲。
+46	go, then click left button.	去，然後點擊左鍵。
+47	Bet is $%v226.00         You have $%v90.00	賭注 $%v226.00  你有 $%v90.00
+48	Bet is $%v225.00         You have $%v90.00	賭注 $%v225.00  你有 $%v90.00
+49	Bet is $%v255.00         You have $%v90.00	賭注 $%v255.00  你有 $%v90.00
+50	Congratulations, you've broken the bank. This casino has a limit of $250.00 per person, and you've reached it. No more for you, Larry!	恭喜！你贏翻了。\n這家賭場每人最多贏 $250.00，\n你已經到頂了。沒你的份了，Larry！
+51	Dealer=%v222   Player=%v223   Split=%v224   	莊家=%v222   玩家=%v223   分牌=%v224
+52	You know, the traffic here is really a killer! You should forget about crossing these streets!	聽著，這兒交通真要人命！\n你別想著過馬路了！
+53	"YO!!\n\nTAXI!!!"	「喲！！\n\n計程車！！！」
+54	Vowing to hold your breath forever, you enter this miserable excuse for public transportation.	你發誓要忍著呼吸，\n踏進這台破得不像話的大眾運輸。
+55	It's not very clean.	它不太乾淨。
+56	It's not very new.	它不太新。
+57	(And those are its good points!)	（這還是它的優點呢！）
+58	Look out! Here he comes again!	小心！他又來了！
+59	Obviously, he thinks you're a fire plug.	顯然他把你當成消防栓。
+60	Dogs like that make you want to keep moving.	這種狗讓你只想快點走。
+61	"I can't wait all day, bub!"	「我沒時間等一整天，老兄！」
+62	"You'll not ride with me again!"	「你別想再上我的車！」
+63	Sick-o!	噁心鬼！
+64	After all he's done for you?	他為你做了那麼多？
+65	He presently smells quite bad, although still better than you.	他現在臭得要死，\n不過還是比你好聞。
+66	"TAXI\nSTAND"	「計程車\n停靠站」
+67	It's dark. Real dark.	黑漆漆的。真的很黑。
+68	You'd better get out of the street first.	你最好先離開街道。
+69	"BEEP\nBEEP!"	「嗶！\n嗶！」
+70	Thousands of cars stream past, just below the edge of your screen.	數千輛汽車呼嘯而過，\n就在你螢幕邊緣下方。
+71	Trust me, they're there!	相信我，它們就在那兒！
+72	It smells like an old cab.	聞起來像老計程車。
+73	Isn't it funny how there's so little traffic?	奇怪啦，怎麼交通這麼少？
+74	The glow of the city lights obliterate the stars.	城市燈光的光芒淹沒了星星。
+75	As you bend over to do so, his bare teeth convince you otherwise.	當你彎下腰時，\n他露出的牙齒讓你改變主意。
+76	You shinny up the pole, read the sign, and come right back down.	你爬上竿子，讀了標誌，\n然後馬上爬下來。
+77	Who'd want him?	誰要他啊？
+78	There is a sign on the pole.	竿子上有個標誌。
+79	Bet is $%v200.00         You have $%v90.00	賭注 $%v200.00  你有 $%v90.00
+80	Congratulations, you've broken the bank! This casino has a limit of $250.00 per person, and you've reached it. No more for you, Larry!	恭喜！你贏翻了。\n這家賭場每人最多贏 $250.00，\n你已經到頂了。沒你的份了，Larry！
+81

@@ -1,0 +1,80 @@
+Erase(%v18):%m26	Erase(%v18):%m26
+AnimateObj(%v18):%m26	AnimateObj(%v18):%m26
+Print(%v18): no message%m25	Print(%v18): no message%m25
+Bad test: %v18%m25	Bad test: %v18%m25
+Bad action: %v18%m25	Bad action: %v18%m25
+StartUpdate(%v18):%m28	StartUpdate(%v18):%m28
+DrawPic(%v18):%m32	DrawPic(%v18):%m32
+Draw(%v18):%m26	Draw(%v18):%m26
+Draw(%v18):%m31	Draw(%v18):%m31
+DiscardPic(%v18):%m32	DiscardPic(%v18):%m32
+SetScanStart() already active\nin logic %v18.%m25	SetScanStart() already active\nin logic %v18.%m25
+Get(%v18) or Put(%v18):%m26	Get(%v18) or Put(%v18):%m26
+\nPress ESC to quit.	\nPress ESC to quit.
+%m27.%m25	%m27.%m25
+\nBad object number	\nBad object number
+%m27 or object not drawn.%m25	%m27 or object not drawn.%m25
+\nView not 	\nView not 
+%m29loaded.%m25	%m29loaded.%m25
+%m29set.%m25	%m29set.%m25
+Picture not loaded.%m25	Picture not loaded.%m25
+Leisure Suit Larry in	Leisure Suit Larry in
+the Land of the Lounge Lizards	the Land of the Lounge Lizards
+KEYBOARD COMMANDS	KEYBOARD COMMANDS
+Use arrows or number keys to move	Use arrows or number keys to move
+Larry.	Larry.
+Press ESC to use the menus.	Press ESC to use the menus.
+Press ENTER to choose from a menu,	Press ENTER to choose from a menu,
+or ESC to return to the game.	or ESC to return to the game.
+Some menu choices list a function key	Some menu choices list a function key
+"shortcut" beside their name.	"shortcut" beside their name.
+For a Hint Book, call (209) 683-6858.	For a Hint Book, call (209) 683-6858.
+ (For a good time, call the author!)	 (For a good time, call the author!)
+JOYSTICK COMMANDS	JOYSTICK COMMANDS
+Point joystick in desired direction	Point joystick in desired direction
+to move Larry.	to move Larry.
+Press top button to use the menus.	Press top button to use the menus.
+Press other button to see the status	Press other button to see the status
+screen.	screen.
+MOUSE COMMANDS	MOUSE COMMANDS
+Put cursor where you want Larry to	Put cursor where you want Larry to
+go, then click the button.	go, then click the button.
+Press right button to use menus.	Press right button to use menus.
+Press left button in the window	Press left button in the window
+bar to use menus.	bar to use menus.
+Press any key to return to game.	Press any key to return to game.
+go, then click left button.	go, then click left button.
+Bet is $%v226.00         You have $%v90.00	Bet is $%v226.00         You have $%v90.00
+Bet is $%v225.00         You have $%v90.00	Bet is $%v225.00         You have $%v90.00
+Bet is $%v255.00         You have $%v90.00	Bet is $%v255.00         You have $%v90.00
+Congratulations, you've broken the bank. This casino has a limit of $250.00 per person, and you've reached it. No more for you, Larry!	Congratulations, you've broken the bank. This casino has a limit of $250.00 per person, and you've reached it. No more for you, Larry!
+Dealer=%v222   Player=%v223   Split=%v224   	Dealer=%v222   Player=%v223   Split=%v224   
+You know, the traffic here is really a killer! You should forget about crossing these streets!	You know, the traffic here is really a killer! You should forget about crossing these streets!
+"YO!!\n\nTAXI!!!"	"YO!!\n\nTAXI!!!"
+Vowing to hold your breath forever, you enter this miserable excuse for public transportation.	Vowing to hold your breath forever, you enter this miserable excuse for public transportation.
+It's not very clean.	It's not very clean.
+It's not very new.	It's not very new.
+(And those are its good points!)	(And those are its good points!)
+Look out! Here he comes again!	Look out! Here he comes again!
+Obviously, he thinks you're a fire plug.	Obviously, he thinks you're a fire plug.
+Dogs like that make you want to keep moving.	Dogs like that make you want to keep moving.
+"I can't wait all day, bub!"	"I can't wait all day, bub!"
+"You'll not ride with me again!"	"You'll not ride with me again!"
+Sick-o!	Sick-o!
+After all he's done for you?	After all he's done for you?
+He presently smells quite bad, although still better than you.	He presently smells quite bad, although still better than you.
+"TAXI\nSTAND"	"TAXI\nSTAND"
+It's dark. Real dark.	It's dark. Real dark.
+You'd better get out of the street first.	You'd better get out of the street first.
+"BEEP\nBEEP!"	"BEEP\nBEEP!"
+Thousands of cars stream past, just below the edge of your screen.	Thousands of cars stream past, just below the edge of your screen.
+Trust me, they're there!	Trust me, they're there!
+It smells like an old cab.	It smells like an old cab.
+Isn't it funny how there's so little traffic?	Isn't it funny how there's so little traffic?
+The glow of the city lights obliterate the stars.	The glow of the city lights obliterate the stars.
+As you bend over to do so, his bare teeth convince you otherwise.	As you bend over to do so, his bare teeth convince you otherwise.
+You shinny up the pole, read the sign, and come right back down.	You shinny up the pole, read the sign, and come right back down.
+Who'd want him?	Who'd want him?
+There is a sign on the pole.	There is a sign on the pole.
+Bet is $%v200.00         You have $%v90.00	Bet is $%v200.00         You have $%v90.00
+Congratulations, you've broken the bank! This casino has a limit of $250.00 per person, and you've reached it. No more for you, Larry!	Congratulations, you've broken the bank! This casino has a limit of $250.00 per person, and you've reached it. No more for you, Larry!

@@ -1,0 +1,120 @@
+Of course, your feelings of success are short-lived, since this is where Ken Williams has to tell you about our soon-to-be-released sequel.\n\nHey, Ken! Come here, and give 'em your pitch...	Of course, your feelings of success are short-lived, since this is where Ken Williams has to tell you about our soon-to-be-released sequel.\n\nHey, Ken! Come here, and give 'em your pitch...
+"Hi, folks! Remember, coming to this very computer Real Soon Now, is the next installment in the saga of Larry Laffer, traveling software salesman. I'd tell you the name now, but we haven't made one up yet!\n\n(Be sure to pick up a few extra copies, just in case our disk copier is screwed up again!)"	"Hi, folks! Remember, coming to this very computer Real Soon Now, is the next installment in the saga of Larry Laffer, traveling software salesman. I'd tell you the name now, but we haven't made one up yet!\n\n(Be sure to pick up a few extra copies, just in case our disk copier is screwed up again!)"
+Oh, wait. We almost forget to tell you how well you played.	Oh, wait. We almost forget to tell you how well you played.
+You can't bear the thought of deflating your new friend, so you don't!	You can't bear the thought of deflating your new friend, so you don't!
+What fun is an uninflated inflatable doll?	What fun is an uninflated inflatable doll?
+...thanks for playing, and be sure to tell each and every one of your friends to buy their own personal copy of this game.	...thanks for playing, and be sure to tell each and every one of your friends to buy their own personal copy of this game.
+Move inside the closet.	Move inside the closet.
+You played ok, I guess!	You played ok, I guess!
+On behalf of Mark and Sandy, Al and Marg, Jeff and Chris, Russ and Kim, Larry and Bob, Ken and Roberta, Bob and Marilyn and/or Bob and Jeannine, John and Mary, Bob and Carol and Ted and Alice...	On behalf of Mark and Sandy, Al and Marg, Jeff and Chris, Russ and Kim, Larry and Bob, Ken and Roberta, Bob and Marilyn and/or Bob and Jeannine, John and Mary, Bob and Carol and Ted and Alice...
+Don't you find it difficult to have a meaningful relationship with latex?	Don't you find it difficult to have a meaningful relationship with latex?
+OK.	OK.
+Love ya, baby!	Love ya, baby!
+Sorry. One's your limit!	Sorry. One's your limit!
+You don't have time to rest!	You don't have time to rest!
+Perhaps if you first established mouth/latex contact...	Perhaps if you first established mouth/latex contact...
+Picking up the corner of the expensive, vinyl, zebra-skin bedspread, you discover...	Picking up the corner of the expensive, vinyl, zebra-skin bedspread, you discover...
+...nothing.	...nothing.
+That's not what she's for, Larry.	That's not what she's for, Larry.
+...and that's exactly the way she used to look!	...and that's exactly the way she used to look!
+Ladies and gentlemen...\n\nMr. Ken Williams!	Ladies and gentlemen...\n\nMr. Ken Williams!
+_	_
+LLLLL	LLLLL
+New room:	New room:
+X coordinate:	X coordinate:
+Y coordinate:	Y coordinate:
+Object number:	Object number:
+Flag number:	Flag number:
+New value:	New value:
+You gottum, Larry.	You gottum, Larry.
+Variable number:	Variable number:
+Variable %v45 = %v46	Variable %v45 = %v46
+Flag %v45 set	Flag %v45 set
+Flag %v45 not set	Flag %v45 not set
+New priority:	New priority:
+Object %v46 is in room %v45.	Object %v46 is in room %v45.
+%v45|3/%v46|3	%v45|3/%v46|3
+Room %v0|3	Room %v0|3
+%v45|2  %o45	%v45|2  %o45
+Number  Name of Object	Number  Name of Object
+%v8 memory pages left.	%v8 memory pages left.
+Unknown word:  "	Unknown word:  "
+H	H
+increment	increment
+decrement	decrement
+assignn	assignn
+assignv	assignv
+addn	addn
+addv	addv
+subn	subn
+subv	subv
+lindirectv	lindirectv
+rindirect	rindirect
+lindirectn	lindirectn
+set	set
+reset	reset
+toggle	toggle
+set.v	set.v
+reset.v	reset.v
+toggle.v	toggle.v
+new.room	new.room
+new.room.v	new.room.v
+load.logics	load.logics
+load.logics.v	load.logics.v
+call	call
+call.v	call.v
+load.pic	load.pic
+draw.pic	draw.pic
+show.pic	show.pic
+discard.pic	discard.pic
+overlay.pic	overlay.pic
+show.pri.screen	show.pri.screen
+load.view	load.view
+load.view.v	load.view.v
+discard.view	discard.view
+animate.obj	animate.obj
+unanimate.all	unanimate.all
+draw	draw
+erase	erase
+position	position
+position.v	position.v
+get.posn	get.posn
+reposition	reposition
+set.view	set.view
+set.view.v	set.view.v
+set.loop	set.loop
+set.loop.v	set.loop.v
+fix.loop	fix.loop
+release.loop	release.loop
+set.cel	set.cel
+set.cel.v	set.cel.v
+last.cel	last.cel
+current.cel	current.cel
+current.loop	current.loop
+current.view	current.view
+number.of.loops	number.of.loops
+set.priority	set.priority
+set.priority.v	set.priority.v
+release.priority	release.priority
+get.priority	get.priority
+stop.update	stop.update
+start.update	start.update
+force.update	force.update
+ignore.horizon	ignore.horizon
+observe.horizon	observe.horizon
+set.horizon	set.horizon
+object.onWater	object.onWater
+object.on.land	object.on.land
+object.on.anything	object.on.anything
+ignore.objs	ignore.objs
+observe.objs	observe.objs
+distance	distance
+stop.cycling	stop.cycling
+start.cycling	start.cycling
+normal.cycle	normal.cycle
+end.of.loop	end.of.loop
+reverse.cycle	reverse.cycle
+reverse.loop	reverse.loop
+cycle.time	cycle.time
+stop.motion	stop.motion
+start.motion	start.motion
