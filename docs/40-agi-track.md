@@ -52,5 +52,18 @@
 
 ## 5. M1 spike 驗收（rulebook 65：對 reference 實機實測）
 
-- 抽 1 則 Larry 對白 → `translation.tsv` 填中文 → 烘該幾字的 Big5 → `--language=tw` 進遊戲 → **實機截圖看到那句中文正確渲染、不破版**。
-- 通過才算 M1 完成，不以 build 綠或 dump 有輸出為準。
+✅ **M1 已完成（2026-07-10）**：實機截圖 `docs/m1-first-chinese-age-prompt.png` — 年齡驗證提示 `How old are you?`（L6.1）正確渲染為中文「你今年幾歲？」，16×16 Big5，標題圖與背景正常。
+
+## 6. M1 實作過程的關鍵發現（踩雷，M2 前務必知道）
+
+1. **中文啟用改用「字型檔存在」而非 `--language=tw`（重要，與 qfg-1 不同）**：
+   LSL1 AGI 在 ScummVM 走 **fallback 偵測**（log：`Couldn't identify game 'lsl1' ... fallback matching agi-fanmade`）。一旦把 target 語言設成**任何非英文**（tw、de 皆然），遊戲就**無法啟動、退回 launcher**——這是 ScummVM AGI fallback 偵測的語言 gating，與中文無關。
+   解法：`GfxMgr::loadChtResources()` 以遊戲目錄有無 `lsl_big5.fnt` 為開關，遊戲以英文正常啟動，中文照樣生效。**不需 `--language`**。（qfg-1 的 SCI 遊戲是正常偵測，故 `--language=tw` 可行；AGI 這條不適用。）
+
+2. **暫不強制 640×400 hi-res（D-1 的 EGA 部分需重議）**：
+   在 `initVideo` 對 EGA 遊戲強制 `DISPLAY_UPSCALED_640x400` 會讓**整個畫面全黑**（背景不渲染）。`render_BlockEGA` 雖有 hires 分支，但強制套用仍與 IIgs/Herc 平台繪圖耦合，根因未解。
+   目前走**原生 320×200 直接畫 16×16 Big5**（一個漢字佔 2 個 8px 字格，`column += 2`），靠 ScummVM 視窗縮放放大顯示——與 qfg-1 SCI 原生路線一致、可讀、背景正常。**640×400 hi-res 留待後續 debug**（M2/M3 或獨立 spike）。
+
+3. **headless 驗證要點**：dummy video driver 下 AGI engine 不跑（要 Xvfb）；輸出要 `stdbuf -oL -eL` 行緩衝寫檔（timeout kill 會吞掉未 flush 的 log）；`--auto-detect` 只會停在 launcher，要先 `--add` 再用 target 名 `lsl1` 啟動。
+
+4. **抽字**：`tools/extract_agi.py` 已能 100% 乾淨解出 1850 則訊息（LOGIC 訊息區整塊連續 XOR "Avis Durgan"，pointer table 不加密）。key 用英文原文（含尾隨空白，如 `How old are you?  ` 有 2 個尾隨空白）。

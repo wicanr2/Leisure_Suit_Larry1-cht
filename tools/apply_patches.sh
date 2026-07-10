@@ -33,7 +33,7 @@ done
 shopt -s nullglob
 for p in "$HERE"/patches/[0-9][0-9][0-9][0-9]-*.patch; do
   echo ">> 套用 $(basename "$p")"
-  patch -p0 -d "$SRC" < "$p"
+  patch -p1 -d "$SRC" < "$p"
 done
 
 echo ">> 完成。configure 範例(docker 內,flag 順序重要):"

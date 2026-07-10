@@ -1,0 +1,253 @@
+diff --git a/engines/agi/agi.cpp b/engines/agi/agi.cpp
+index 95d4ad4082..732924cb72 100644
+--- a/engines/agi/agi.cpp
++++ b/engines/agi/agi.cpp
+@@ -529,6 +529,7 @@ void AgiEngine::initialize() {
+ 	_inventory = new InventoryMgr(this, _gfx, _text, _systemUI);
+ 
+ 	_font->init();
++	_gfx->loadChtResources(); // 繁體中文化：須在 initVideo 前（依 _chtEnabled 決定拉 640x400 hi-res）
+ 	_gfx->initVideo();
+ 
+ 	_text->init(_systemUI);
+diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
+index 1bb1d20232..fc305d835f 100644
+--- a/engines/agi/graphics.cpp
++++ b/engines/agi/graphics.cpp
+@@ -26,6 +26,7 @@
+ 
+ #include "graphics/cursorman.h"
+ #include "graphics/paletteman.h"
++#include "graphics/big5.h"
+ 
+ #include "agi/agi.h"
+ #include "agi/graphics.h"
+@@ -39,6 +40,9 @@ namespace Agi {
+ #include "agi/font.h"
+ 
+ GfxMgr::GfxMgr(AgiBase *vm, GfxFont *font) : _vm(vm), _font(font) {
++	_chtEnabled = false;
++	_chtFont = nullptr;
++
+ 	memset(&_paletteGfxMode, 0, sizeof(_paletteGfxMode));
+ 	memset(&_paletteTextMode, 0, sizeof(_paletteTextMode));
+ 
+@@ -151,6 +155,10 @@ void GfxMgr::initVideo() {
+ 		break;
+ 	}
+ 
++	// 繁體中文化：暫不強制 640x400 hi-res（強制套在 EGA 會使背景全黑，耦合 IIgs/Herc 平台繪圖，待查）。
++	// 改走原生 320x200 直接畫 16x16 Big5（佔 2 個 8px 字格），靠 ScummVM 視窗縮放放大顯示——qfg-1 已驗證路線。
++	// if (_chtEnabled) forceHires = true;
++
+ 	if (_font->isFontHires() || forceHires) {
+ 		// Upscaling enable
+ 		_upscaledHires = DISPLAY_UPSCALED_640x400;
+@@ -1157,6 +1165,90 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
+ /**
+  * Draw a character to the display screen using text row and column coordinates
+  */
++// 繁體中文化：把 \n / \\ escape 還原成實際位元組（AGI 訊息含硬換行，塞不進單行 TSV）
++static Common::String chtUnescape(const Common::String &in) {
++	Common::String out;
++	for (uint i = 0; i < in.size(); i++) {
++		if (in[i] == '\\' && i + 1 < in.size()) {
++			char n = in[i + 1];
++			if (n == 'n') { out += '\n'; i++; continue; }
++			if (n == '\\') { out += '\\'; i++; continue; }
++			if (n == 't') { out += '\t'; i++; continue; }
++		}
++		out += in[i];
++	}
++	return out;
++}
++
++// 繁體中文化：載入 Big5 字型與 translation.tsv。須在 initVideo() 之前呼叫（initVideo 依 _chtEnabled 決定拉 hi-res）。
++void GfxMgr::loadChtResources() {
++	// 繁體中文化以「遊戲目錄有無 lsl_big5.fnt」為開關，不依賴 --language。
++	// 原因：LSL1 AGI 在 ScummVM 走 fallback 偵測，一旦把 target 語言設成非英文就無法啟動遊戲
++	//（任何非英文語言皆然，與中文無關）。改用字型檔存在與否，遊戲以英文正常啟動，中文照樣生效。
++	Common::File fontFile;
++	if (!fontFile.open("lsl_big5.fnt")) {
++		_chtEnabled = false;
++		return; // 沒有中文字型 → 維持英文
++	}
++	_chtEnabled = true;
++	_chtFont = new Graphics::Big5Font();
++	_chtFont->loadPrefixedRaw(fontFile, 16);
++	fontFile.close();
++	debug("AGI-CHT: Big5 字型 lsl_big5.fnt 已載入");
++
++	// translation.tsv：<english>\t<big5>，逐行載入成 HashMap
++	Common::File tsvFile;
++	if (tsvFile.open("translation.tsv")) {
++		while (!tsvFile.eos()) {
++			Common::String line = tsvFile.readLine();
++			if (line.empty())
++				continue;
++			uint32 tab = line.findFirstOf('\t');
++			if (tab == Common::String::npos)
++				continue;
++			Common::String key = chtUnescape(line.substr(0, tab));
++			Common::String val = chtUnescape(line.substr(tab + 1));
++			_chtTranslation[key] = val;
++		}
++		tsvFile.close();
++		debug("AGI-CHT: 載入 %d 則翻譯", (int)_chtTranslation.size());
++	} else {
++		warning("AGI-CHT: 找不到 translation.tsv");
++	}
++}
++
++// 用英文原文當 key 查中譯；查無則原樣返回
++const char *GfxMgr::getChtTranslation(const char *english) const {
++	if (!_chtEnabled || !english)
++		return english;
++	Common::HashMap<Common::String, Common::String>::const_iterator it = _chtTranslation.find(Common::String(english));
++	if (it != _chtTranslation.end())
++		return it->_value.c_str();
++	return english;
++}
++
++// 在文字格 (row,column) 畫一個 16x16 中文字
++void GfxMgr::drawBig5Character(int16 row, int16 column, uint16 big5, byte foreground, byte background) {
++	int16 x = column;
++	int16 y = row;
++	translateFontPosToDisplayScreen(x, y); // x=column*16, y=row*16（hi-res）
++	drawBig5CharacterOnDisplay(x, y, big5, foreground, background);
++}
++
++void GfxMgr::drawBig5CharacterOnDisplay(int16 x, int16 y, uint16 big5, byte foreground, byte background) {
++	if (!_chtFont)
++		return;
++	// 先把 16x16 cell 填背景色（Big5Font 只畫前景 pixel，不清底）
++	for (int16 cy = 0; cy < 16; cy++) {
++		byte *rowPtr = _displayScreen + (y + cy) * _displayScreenWidth + x;
++		for (int16 cx = 0; cx < 16; cx++)
++			rowPtr[cx] = background;
++	}
++	byte *dest = _displayScreen + y * _displayScreenWidth + x;
++	_chtFont->drawBig5Char(dest, big5, 16, 16, _displayScreenWidth, foreground, background, false, 1);
++	copyDisplayRectToScreen(x, y, 16, 16); // 中文字固定 16x16（不用 _displayFontWidth，原生模式為 8）
++}
++
+ void GfxMgr::drawCharacter(int16 row, int16 column, byte character, byte foreground, byte background, bool disabledLook) {
+ 	int16 x = column;
+ 	int16 y = row;
+diff --git a/engines/agi/graphics.h b/engines/agi/graphics.h
+index 320019fa50..c841c5f64c 100644
+--- a/engines/agi/graphics.h
++++ b/engines/agi/graphics.h
+@@ -24,6 +24,13 @@
+ 
+ #include "agi/font.h"
+ 
++#include "common/hashmap.h"
++#include "common/hash-str.h"
++
++namespace Graphics {
++class Big5Font;
++}
++
+ namespace Agi {
+ 
+ #define SCRIPT_WIDTH    160
+@@ -60,6 +67,11 @@ private:
+ 	AgiBase *_vm;
+ 	GfxFont *_font;
+ 
++	// 繁體中文化 (Big5) 狀態
++	bool _chtEnabled;
++	Graphics::Big5Font *_chtFont;
++	Common::HashMap<Common::String, Common::String> _chtTranslation;
++
+ 	uint8 _paletteGfxMode[256 * 3];
+ 	uint8 _paletteTextMode[256 * 3];
+ 
+@@ -69,6 +81,13 @@ private:
+ public:
+ 	GfxMgr(AgiBase *vm, GfxFont *font);
+ 
++	// 繁體中文化：載入 Big5 字型 + translation.tsv、查表替換、繪 16x16 中文字
++	void loadChtResources();
++	bool chtEnabled() const { return _chtEnabled; }
++	const char *getChtTranslation(const char *english) const;
++	void drawBig5Character(int16 row, int16 column, uint16 big5, byte foreground, byte background);
++	void drawBig5CharacterOnDisplay(int16 x, int16 y, uint16 big5, byte foreground, byte background);
++
+ 	void initVideo();
+ 	void deinitVideo();
+ 	static void initPalette(uint8 *destPalette, const uint8 *paletteData, uint colorCount = 16, uint fromBits = 6, uint toBits = 8);
+diff --git a/engines/agi/text.cpp b/engines/agi/text.cpp
+index cc02816bce..f93973e1b3 100644
+--- a/engines/agi/text.cpp
++++ b/engines/agi/text.cpp
+@@ -338,6 +338,10 @@ Common::String rightAlign(Common::String line, va_list args) {
+ }
+ 
+ void TextMgr::displayText(const char *textPtr, bool disabledLook) {
++	// 繁體中文化：display 路徑（非 messageBox）的整串替換（messageBox 路徑已在其入口先換過，
++	// 這裡拿到的是已斷行的中文子串，查無 key 不影響）
++	textPtr = _gfx->getChtTranslation(textPtr);
++
+ 	Common::String textString;
+ 	if (_vm->isLanguageRTL()) {
+ 		textString = textPtr;
+@@ -357,11 +361,35 @@ void TextMgr::displayText(const char *textPtr, bool disabledLook) {
+ 		if (!curCharacter)
+ 			break;
+ 
++		// 繁體中文化：偵測 Big5 lead byte（0x81-0xFE）+ trail，畫一個 16x16 中文字（佔一個字格）
++		if (_gfx->chtEnabled() && curCharacter >= 0x81 && curCharacter <= 0xFE && curTextPtr[1]) {
++			uint16 big5 = (curCharacter << 8) | (byte)curTextPtr[1];
++			displayBig5Character(big5);
++			curTextPtr += 2;
++			continue;
++		}
++
+ 		curTextPtr++;
+ 		displayCharacter(curCharacter, disabledLook);
+ 	}
+ }
+ 
++// 繁體中文化：在目前文字格畫一個 16x16 中文字，游標前進一格（換行邏輯同 displayCharacter）
++void TextMgr::displayBig5Character(uint16 big5) {
++	TextPos_Struct charCurPos;
++	charPos_Get(&charCurPos);
++
++	_gfx->drawBig5Character(charCurPos.row, charCurPos.column, big5, _textAttrib.combinedForeground, _textAttrib.combinedBackground);
++
++	// 原生 320x200：一個 16px 中文字佔 2 個 8px 字格
++	charCurPos.column += 2;
++	if (charCurPos.column <= (FONT_COLUMN_CHARACTERS - 1)) {
++		charPos_Set(&charCurPos);
++	} else {
++		displayCharacter(0x0D); // go to next line
++	}
++}
++
+ void TextMgr::displayCharacter(byte character, bool disabledLook) {
+ 	TextPos_Struct charCurPos;
+ 
+@@ -426,6 +454,9 @@ void TextMgr::printAt(int16 textNr, int16 textPos_Row, int16 textPos_Column, int
+ }
+ 
+ bool TextMgr::messageBox(const char *textPtr) {
++	// 繁體中文化：用英文原文查表換成 Big5 中譯（查無則原樣）
++	textPtr = _gfx->getChtTranslation(textPtr);
++
+ 	drawMessageBox(textPtr);
+ 
+ 	if (_vm->getFlag(VM_FLAG_OUTPUT_MODE)) {
+diff --git a/engines/agi/text.h b/engines/agi/text.h
+index 54d61530ed..26a5f26030 100644
+--- a/engines/agi/text.h
++++ b/engines/agi/text.h
+@@ -123,6 +123,7 @@ public:
+ 	void displayAdjustRTL(int16 textRow, int16 textColumn, char *text, int16 calculatedWidth);
+ 	void displayText(const char *textPtr, bool disabledLook = false);
+ 	void displayCharacter(byte character, bool disabledLook = false);
++	void displayBig5Character(uint16 big5); // 繁體中文化：畫 16x16 中文字
+ 
+ 	void displayTextInsideWindow(const char *textPtr, int16 windowRow, int16 windowColumn);
+ 
