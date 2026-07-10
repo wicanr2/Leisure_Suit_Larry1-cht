@@ -60,9 +60,9 @@
    LSL1 AGI 在 ScummVM 走 **fallback 偵測**（log：`Couldn't identify game 'lsl1' ... fallback matching agi-fanmade`）。一旦把 target 語言設成**任何非英文**（tw、de 皆然），遊戲就**無法啟動、退回 launcher**——這是 ScummVM AGI fallback 偵測的語言 gating，與中文無關。
    解法：`GfxMgr::loadChtResources()` 以遊戲目錄有無 `lsl_big5.fnt` 為開關，遊戲以英文正常啟動，中文照樣生效。**不需 `--language`**。（qfg-1 的 SCI 遊戲是正常偵測，故 `--language=tw` 可行；AGI 這條不適用。）
 
-2. **暫不強制 640×400 hi-res（D-1 的 EGA 部分需重議）**：
-   在 `initVideo` 對 EGA 遊戲強制 `DISPLAY_UPSCALED_640x400` 會讓**整個畫面全黑**（背景不渲染）。`render_BlockEGA` 雖有 hires 分支，但強制套用仍與 IIgs/Herc 平台繪圖耦合，根因未解。
-   目前走**原生 320×200 直接畫 16×16 Big5**（一個漢字佔 2 個 8px 字格，`column += 2`），靠 ScummVM 視窗縮放放大顯示——與 qfg-1 SCI 原生路線一致、可讀、背景正常。**640×400 hi-res 留待後續 debug**（M2/M3 或獨立 spike）。
+2. **640×400 hi-res 畫布（D-1，已成功，顯示層 aspect 校正為 640×480）**：
+   `initVideo` 在 `_chtEnabled` 時 `forceHires=true` → `DISPLAY_UPSCALED_640x400`，字格寬=16px，一個 16×16 中文字佔 1 格（`column += 1`）。背景由 `render_BlockEGA` 的 640x400 分支正常渲染，中文比例正確、清晰。
+   > ⚠️ 曾誤判「強制 hires 使背景全黑」——**真因是語言 gating**（見上一條：當時用 `--language=tw` 觸發 cht，遊戲根本沒啟動）。改成檔案式 cht 開關後，遊戲以英文正常啟動，hires 完全正常。教訓：驗證 hires 前先確認遊戲有真的 launch 進 engine（log 要有 `Emulating Sierra AGI`）。
 
 3. **headless 驗證要點**：dummy video driver 下 AGI engine 不跑（要 Xvfb）；輸出要 `stdbuf -oL -eL` 行緩衝寫檔（timeout kill 會吞掉未 flush 的 log）；`--auto-detect` 只會停在 launcher，要先 `--add` 再用 target 名 `lsl1` 啟動。
 

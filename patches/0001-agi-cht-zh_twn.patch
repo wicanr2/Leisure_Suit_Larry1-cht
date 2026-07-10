@@ -11,7 +11,7 @@ index 95d4ad4082..732924cb72 100644
  
  	_text->init(_systemUI);
 diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
-index 1bb1d20232..fc305d835f 100644
+index 1bb1d20232..1bb75e83f1 100644
 --- a/engines/agi/graphics.cpp
 +++ b/engines/agi/graphics.cpp
 @@ -26,6 +26,7 @@
@@ -32,18 +32,19 @@ index 1bb1d20232..fc305d835f 100644
  	memset(&_paletteGfxMode, 0, sizeof(_paletteGfxMode));
  	memset(&_paletteTextMode, 0, sizeof(_paletteTextMode));
  
-@@ -151,6 +155,10 @@ void GfxMgr::initVideo() {
+@@ -151,6 +155,11 @@ void GfxMgr::initVideo() {
  		break;
  	}
  
-+	// 繁體中文化：暫不強制 640x400 hi-res（強制套在 EGA 會使背景全黑，耦合 IIgs/Herc 平台繪圖，待查）。
-+	// 改走原生 320x200 直接畫 16x16 Big5（佔 2 個 8px 字格），靠 ScummVM 視窗縮放放大顯示——qfg-1 已驗證路線。
-+	// if (_chtEnabled) forceHires = true;
++	// 繁體中文化：拉高到 640x400 hi-res 內部畫布（ScummVM 顯示層 aspect 校正為 640x480），
++	// 讓 16x16 中文字有空間（rulebook 81 拉高畫布不縮字，D-1）。
++	if (_chtEnabled)
++		forceHires = true;
 +
  	if (_font->isFontHires() || forceHires) {
  		// Upscaling enable
  		_upscaledHires = DISPLAY_UPSCALED_640x400;
-@@ -1157,6 +1165,90 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
+@@ -1157,6 +1166,90 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
  /**
   * Draw a character to the display screen using text row and column coordinates
   */
@@ -179,7 +180,7 @@ index 320019fa50..c841c5f64c 100644
  	void deinitVideo();
  	static void initPalette(uint8 *destPalette, const uint8 *paletteData, uint colorCount = 16, uint fromBits = 6, uint toBits = 8);
 diff --git a/engines/agi/text.cpp b/engines/agi/text.cpp
-index cc02816bce..f93973e1b3 100644
+index cc02816bce..96ed33d604 100644
 --- a/engines/agi/text.cpp
 +++ b/engines/agi/text.cpp
 @@ -338,6 +338,10 @@ Common::String rightAlign(Common::String line, va_list args) {
@@ -217,8 +218,8 @@ index cc02816bce..f93973e1b3 100644
 +
 +	_gfx->drawBig5Character(charCurPos.row, charCurPos.column, big5, _textAttrib.combinedForeground, _textAttrib.combinedBackground);
 +
-+	// 原生 320x200：一個 16px 中文字佔 2 個 8px 字格
-+	charCurPos.column += 2;
++	// 640x400 hi-res：字格寬=16px，一個 16x16 中文字佔 1 格
++	charCurPos.column += 1;
 +	if (charCurPos.column <= (FONT_COLUMN_CHARACTERS - 1)) {
 +		charPos_Set(&charCurPos);
 +	} else {
