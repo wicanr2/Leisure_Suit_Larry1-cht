@@ -34,3 +34,4 @@ SNDDIR
 *.bak
 .venv/
 __pycache__/
+game/
