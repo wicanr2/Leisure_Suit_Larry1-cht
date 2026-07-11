@@ -1,3 +1,22 @@
+diff --git a/engines/sci/event.cpp b/engines/sci/event.cpp
+index 145d32f18a..22dee8a7bc 100644
+--- a/engines/sci/event.cpp
++++ b/engines/sci/event.cpp
+@@ -314,6 +314,14 @@ SciEvent EventManager::getScummVMEvent() {
+ 
+ 	const Common::KeyCode scummVMKeycode = ev.kbd.keycode;
+ 
++	// 繁體中文化：F8 = 中/英文對照切換。攔截後不傳給遊戲腳本；切換於下一則文字繪製時生效
++	// （SCI 文字框的繪製與 transient port 狀態緊耦合，就地重繪風險高，故採「下一則生效」語意）。
++	if (g_sci->getLanguage() == Common::ZH_TWN && ev.type == Common::EVENT_KEYDOWN &&
++		scummVMKeycode == Common::KEYCODE_F8) {
++		g_sci->toggleChtLang();
++		return noEvent;
++	}
++
+ 	input.character = ev.kbd.ascii;
+ 
+ 	if (scummVMKeycode >= Common::KEYCODE_KP0 && scummVMKeycode <= Common::KEYCODE_KP9 && !(scummVMKeyFlags & Common::KBD_NUM)) {
 diff --git a/engines/sci/graphics/cache.cpp b/engines/sci/graphics/cache.cpp
 index fda7797e85..b012b33170 100644
 --- a/engines/sci/graphics/cache.cpp
@@ -289,7 +308,7 @@ index 94d96a6e38..b4c689eb87 100644
  	graphics/fontsjis.o \
  	graphics/macfont.o \
 diff --git a/engines/sci/sci.cpp b/engines/sci/sci.cpp
-index b4d28b797c..2cc62dcfb7 100644
+index b4d28b797c..6269fc3c7f 100644
 --- a/engines/sci/sci.cpp
 +++ b/engines/sci/sci.cpp
 @@ -19,6 +19,9 @@
@@ -385,7 +404,7 @@ index b4d28b797c..2cc62dcfb7 100644
  }
  
 +const char *SciEngine::getChtTranslation(const char *original) const {
-+	if (_chtTranslation.empty() || !original)
++	if (_chtTranslation.empty() || !_chtLangOn || !original)   // F8 切到英文時 _chtLangOn=false → 回 nullptr 露原文
 +		return nullptr;
 +	Common::HashMap<Common::String, Common::String>::const_iterator it = _chtTranslation.find(original);
 +	if (it == _chtTranslation.end())
@@ -519,7 +538,7 @@ index b4d28b797c..2cc62dcfb7 100644
  }
  
 diff --git a/engines/sci/sci.h b/engines/sci/sci.h
-index d936170077..6889e57636 100644
+index d936170077..17919f297c 100644
 --- a/engines/sci/sci.h
 +++ b/engines/sci/sci.h
 @@ -26,6 +26,8 @@
@@ -531,7 +550,7 @@ index d936170077..6889e57636 100644
  #include "sci/engine/vm_types.h"	// for Selector
  #include "sci/debug.h"	// for DebugState
  #include "sci/detection.h" // Shared code between detection and engine
-@@ -185,6 +187,19 @@ public:
+@@ -185,6 +187,23 @@ public:
  	const char *getGameIdStr() const;
  	Common::Language getLanguage() const;
  
@@ -544,6 +563,10 @@ index d936170077..6889e57636 100644
 +	const char *getChtTranslation(const char *original) const;
 +	void loadChtTranslation();
 +
++	// CHT: F8 中/英文對照切換。true=顯示中譯、false=露出英文原文。
++	bool chtLangOn() const { return _chtLangOn; }
++	void toggleChtLang() { _chtLangOn = !_chtLangOn; }
++
 +	// CHT: 標題畫面「幻想空間」中文標題疊圖（VGA/SCI）。
 +	void loadChtTitleOverlay();   // 載入 lsl_title.ovl（若存在）
 +	void drawChtTitleOverlay();   // 把中文標題疊到當前 display 上（nearest-map 到當前 palette）
@@ -551,11 +574,12 @@ index d936170077..6889e57636 100644
  	/**
  	 * Returns true if the game's language direction is Right To Left.
  	 * RTL support did not exist in the original SCI engine.
-@@ -406,6 +421,14 @@ private:
+@@ -406,6 +425,15 @@ private:
  
  	const ADGameDescription *_gameDescription;
  	const SciGameId _gameId;
 +	Common::HashMap<Common::String, Common::String> _chtTranslation; /**< CHT: English -> Big5 */
++	bool _chtLangOn = true; /**< CHT: F8 中/英切換旗標，false 時 getChtTranslation 回 nullptr → 露原文 */
 +
 +	// CHT 標題疊圖狀態（VGA/SCI）
 +	byte  *_chtTitleOverlay;      // pixels：0xFF=透明，否則內嵌調色盤 index；nullptr=未載入

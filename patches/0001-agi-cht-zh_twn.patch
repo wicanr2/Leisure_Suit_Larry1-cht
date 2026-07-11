@@ -11,7 +11,7 @@ index 95d4ad4082..732924cb72 100644
  
  	_text->init(_systemUI);
 diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
-index 1bb1d20232..98f06ccf81 100644
+index 1bb1d20232..dd6c5b4163 100644
 --- a/engines/agi/graphics.cpp
 +++ b/engines/agi/graphics.cpp
 @@ -26,6 +26,7 @@
@@ -22,11 +22,12 @@ index 1bb1d20232..98f06ccf81 100644
  
  #include "agi/agi.h"
  #include "agi/graphics.h"
-@@ -39,6 +40,12 @@ namespace Agi {
+@@ -39,6 +40,13 @@ namespace Agi {
  #include "agi/font.h"
  
  GfxMgr::GfxMgr(AgiBase *vm, GfxFont *font) : _vm(vm), _font(font) {
 +	_chtEnabled = false;
++	_chtLangOn = true;   // 預設顯示中譯；F8 可切成英文原文
 +	_chtFont = nullptr;
 +	_chtTitleOverlay = nullptr;
 +	_chtTitleOX = _chtTitleOY = _chtTitleOW = _chtTitleOH = 0;
@@ -35,7 +36,7 @@ index 1bb1d20232..98f06ccf81 100644
  	memset(&_paletteGfxMode, 0, sizeof(_paletteGfxMode));
  	memset(&_paletteTextMode, 0, sizeof(_paletteTextMode));
  
-@@ -151,6 +158,11 @@ void GfxMgr::initVideo() {
+@@ -151,6 +159,11 @@ void GfxMgr::initVideo() {
  		break;
  	}
  
@@ -47,7 +48,7 @@ index 1bb1d20232..98f06ccf81 100644
  	if (_font->isFontHires() || forceHires) {
  		// Upscaling enable
  		_upscaledHires = DISPLAY_UPSCALED_640x400;
-@@ -1157,6 +1169,143 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
+@@ -1157,6 +1170,143 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
  /**
   * Draw a character to the display screen using text row and column coordinates
   */
@@ -155,7 +156,7 @@ index 1bb1d20232..98f06ccf81 100644
 +
 +// 用英文原文當 key 查中譯；查無則原樣返回
 +const char *GfxMgr::getChtTranslation(const char *english) const {
-+	if (!_chtEnabled || !english)
++	if (!_chtEnabled || !_chtLangOn || !english)   // F8 切到英文時 _chtLangOn=false → 回原文
 +		return english;
 +	Common::HashMap<Common::String, Common::String>::const_iterator it = _chtTranslation.find(Common::String(english));
 +	if (it != _chtTranslation.end())
@@ -192,7 +193,7 @@ index 1bb1d20232..98f06ccf81 100644
  	int16 x = column;
  	int16 y = row;
 diff --git a/engines/agi/graphics.h b/engines/agi/graphics.h
-index 320019fa50..397bd84392 100644
+index 320019fa50..2eed38755a 100644
 --- a/engines/agi/graphics.h
 +++ b/engines/agi/graphics.h
 @@ -24,6 +24,13 @@
@@ -209,12 +210,14 @@ index 320019fa50..397bd84392 100644
  namespace Agi {
  
  #define SCRIPT_WIDTH    160
-@@ -60,6 +67,16 @@ private:
+@@ -60,6 +67,18 @@ private:
  	AgiBase *_vm;
  	GfxFont *_font;
  
 +	// 繁體中文化 (Big5) 狀態
 +	bool _chtEnabled;
++	bool _chtLangOn;   // F8 中/英切換：true=顯示中譯、false=露出英文原文（獨立於 _chtEnabled，
++	                   // 因為 _chtEnabled 還牽動 hi-res 與 Big5 繪製 gate，不能拿來當語言開關）
 +	Graphics::Big5Font *_chtFont;
 +	Common::HashMap<Common::String, Common::String> _chtTranslation;
 +
@@ -226,13 +229,15 @@ index 320019fa50..397bd84392 100644
  	uint8 _paletteGfxMode[256 * 3];
  	uint8 _paletteTextMode[256 * 3];
  
-@@ -69,6 +86,15 @@ private:
+@@ -69,6 +88,17 @@ private:
  public:
  	GfxMgr(AgiBase *vm, GfxFont *font);
  
 +	// 繁體中文化：載入 Big5 字型 + translation.tsv、查表替換、繪 16x16 中文字
 +	void loadChtResources();
 +	bool chtEnabled() const { return _chtEnabled; }
++	bool chtLangOn() const { return _chtLangOn; }
++	void toggleChtLang() { _chtLangOn = !_chtLangOn; }   // F8 切換中/英
 +	const char *getChtTranslation(const char *english) const;
 +	void drawBig5Character(int16 row, int16 column, uint16 big5, byte foreground, byte background);
 +	void drawBig5CharacterOnDisplay(int16 x, int16 y, uint16 big5, byte foreground, byte background);
@@ -242,6 +247,24 @@ index 320019fa50..397bd84392 100644
  	void initVideo();
  	void deinitVideo();
  	static void initPalette(uint8 *destPalette, const uint8 *paletteData, uint colorCount = 16, uint fromBits = 6, uint toBits = 8);
+diff --git a/engines/agi/keyboard.cpp b/engines/agi/keyboard.cpp
+index 3c19773ee8..f8e2c9b201 100644
+--- a/engines/agi/keyboard.cpp
++++ b/engines/agi/keyboard.cpp
+@@ -130,6 +130,13 @@ void AgiEngine::processScummVMEvents() {
+ 			}
+ 			break;
+ 		case Common::EVENT_KEYDOWN:
++			// 繁體中文化：F8 = 中/英文對照切換。攔截後不傳給遊戲（避免 AGI_KEY_F8 被腳本吃掉），
++			// 並就地把當前訊息框用新語言重繪。僅在中文化啟用時攔截，否則 F8 維持原行為。
++			if (_gfx->chtEnabled() && event.kbd.keycode == Common::KEYCODE_F8) {
++				_gfx->toggleChtLang();
++				_text->chtToggleRedraw();
++				break;
++			}
+ 			key = event.kbd.ascii;
+ 			if (event.kbd.keycode >= Common::KEYCODE_KP0 && event.kbd.keycode <= Common::KEYCODE_KP9) {
+ 				if (!(event.kbd.flags & Common::KBD_NUM)) {
 diff --git a/engines/agi/picture.cpp b/engines/agi/picture.cpp
 index 70ce126d9b..030c9762ec 100644
 --- a/engines/agi/picture.cpp
@@ -263,7 +286,7 @@ index 70ce126d9b..030c9762ec 100644
  
  } // End of namespace Agi
 diff --git a/engines/agi/text.cpp b/engines/agi/text.cpp
-index cc02816bce..8e96793d9a 100644
+index cc02816bce..cda72a8904 100644
 --- a/engines/agi/text.cpp
 +++ b/engines/agi/text.cpp
 @@ -338,6 +338,10 @@ Common::String rightAlign(Common::String line, va_list args) {
@@ -315,17 +338,46 @@ index cc02816bce..8e96793d9a 100644
  void TextMgr::displayCharacter(byte character, bool disabledLook) {
  	TextPos_Struct charCurPos;
  
-@@ -426,6 +456,9 @@ void TextMgr::printAt(int16 textNr, int16 textPos_Row, int16 textPos_Column, int
+@@ -426,7 +456,18 @@ void TextMgr::printAt(int16 textNr, int16 textPos_Row, int16 textPos_Column, int
  }
  
  bool TextMgr::messageBox(const char *textPtr) {
++	// 繁體中文化：快取英文原文與排版意圖，供 F8 中/英切換時就地重繪本框
++	_chtToggleOriginal = textPtr;
++	_chtToggleWantedRow = _messageState.wanted_TextPos.row;
++	_chtToggleWantedColumn = _messageState.wanted_TextPos.column;
++	_chtToggleWantedWidth = _messageState.wanted_Text_Width;
++
 +	// 繁體中文化：用英文原文查表換成 Big5 中譯（查無則原樣）
 +	textPtr = _gfx->getChtTranslation(textPtr);
 +
  	drawMessageBox(textPtr);
++	// drawMessageBox 內部若有舊窗會先 closeWindow（清掉旗標），故在其後才標記本框可重繪
++	_chtToggleBoxActive = true;
  
  	if (_vm->getFlag(VM_FLAG_OUTPUT_MODE)) {
-@@ -1179,6 +1212,28 @@ void TextMgr::stringRememberForAutoComplete(bool entered) {
+ 		// non-blocking window
+@@ -630,6 +671,19 @@ void TextMgr::closeWindow(bool ttsStopSpeech) {
+ 
+ 	_messageState.dialogue_Open = false;
+ 	_messageState.window_Active = false;
++	_chtToggleBoxActive = false;   // 繁體中文化：框關了就不再可重繪（chtToggleRedraw 會在自身重繪後重設回 true）
++}
++
++// 繁體中文化：F8 切換後，就地把當前訊息框用新語言重繪
++void TextMgr::chtToggleRedraw() {
++	if (!_chtToggleBoxActive || !_messageState.window_Active || _chtToggleOriginal.empty())
++		return;
++	// 還原原本的排版意圖（drawMessageBox 會讀 wanted_*），再用當前語言重譯重繪
++	_messageState.wanted_TextPos.row = _chtToggleWantedRow;
++	_messageState.wanted_TextPos.column = _chtToggleWantedColumn;
++	_messageState.wanted_Text_Width = _chtToggleWantedWidth;
++	drawMessageBox(_gfx->getChtTranslation(_chtToggleOriginal.c_str()));
++	_chtToggleBoxActive = true;   // drawMessageBox 內部 closeWindow 清了旗標，重繪後設回可再切
+ }
+ 
+ void TextMgr::statusRow_Set(int16 row) {
+@@ -1179,6 +1233,28 @@ void TextMgr::stringRememberForAutoComplete(bool entered) {
   * @param originalText  String to wrap.
   * @param maxWidth      Length of line.
   */
@@ -354,7 +406,7 @@ index cc02816bce..8e96793d9a 100644
  char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *calculatedWidthPtr, int16 *calculatedHeightPtr) {
  	static char resultWrappedBuffer[2000];
  	int16 boxWidth = 0;
-@@ -1214,10 +1269,11 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
+@@ -1214,10 +1290,11 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
  		}
  		byte wordEndChar = originalText[curReadPos];
  
@@ -368,7 +420,7 @@ index cc02816bce..8e96793d9a 100644
  			// Not enough space left
  
  			// If first character right after the new line is a space, skip over it
-@@ -1225,13 +1281,15 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
+@@ -1225,13 +1302,15 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
  				if (originalText[wordStartPos] == ' ') {
  					wordStartPos++;
  					wordLen--;
@@ -388,7 +440,7 @@ index cc02816bce..8e96793d9a 100644
  			}
  
  			// Add new line
-@@ -1246,10 +1304,10 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
+@@ -1246,10 +1325,10 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
  				break;
  		}
  
@@ -403,7 +455,7 @@ index cc02816bce..8e96793d9a 100644
  
  		if (wordEndChar == 0x0A) {
 diff --git a/engines/agi/text.h b/engines/agi/text.h
-index 54d61530ed..26a5f26030 100644
+index 54d61530ed..b4d1438029 100644
 --- a/engines/agi/text.h
 +++ b/engines/agi/text.h
 @@ -123,6 +123,7 @@ public:
@@ -414,3 +466,18 @@ index 54d61530ed..26a5f26030 100644
  
  	void displayTextInsideWindow(const char *textPtr, int16 windowRow, int16 windowColumn);
  
+@@ -134,6 +135,14 @@ public:
+ 	bool messageBox(const char *textPtr);
+ 	void messageBox_KeyPress(uint16 newKey);
+ 
++	// 繁體中文化：F8 中/英切換時，就地把「當前訊息框」用新語言重繪
++	void chtToggleRedraw();
++	Common::String _chtToggleOriginal;      // 當前訊息框的英文原文（未經查表）
++	int16 _chtToggleWantedRow = -1;         // 重繪時還原原本的排版意圖
++	int16 _chtToggleWantedColumn = -1;
++	int16 _chtToggleWantedWidth = -1;
++	bool  _chtToggleBoxActive = false;      // 是否有可重繪的訊息框
++
+ 	bool _messageBoxCancelled;
+ 
+ 	void drawMessageBox(const char *textPtr, int16 forcedHeight = 0, int16 wantedWidth = 0, bool forcedWidth = false);
