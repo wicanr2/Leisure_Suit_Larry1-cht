@@ -37,3 +37,4 @@ __pycache__/
 game/
 out/
 tools/.cache/
+scummvm-win/

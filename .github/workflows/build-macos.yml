@@ -1,6 +1,6 @@
 name: build-macos
 
-# 英雄傳奇 I 繁中化 — macOS universal(arm64+x86_64)ScummVM.app + .dmg/.tar.gz。
+# 幻想空間(LSL1) 繁中化 — macOS universal(arm64+x86_64)ScummVM.app + .dmg/.tar.gz。
 #
 # 不能在 Linux 交叉編譯 macOS(Apple SDK EULA + codesign/hdiutil 只在 macOS host),
 # 用 macos-14(Apple Silicon)runner 借幾分鐘 build。細節與踩雷見 BUILD.md §3 與
@@ -12,12 +12,12 @@ name: build-macos
 # universal binary 用「每弧各編一次 + lipo -create」,不用單次雙 -arch 塞給 configure
 # (autoconf 風格的版本解析在雙弧下會炸)。
 #
-# 本專案的 --disable-all-engines --enable-engine=sci 裁剪配置只需要 SDL2(zlib/curl 等
+# 本專案的 --disable-all-engines --enable-engine=agi --enable-engine=sci 裁剪配置只需要 SDL2(zlib/curl 等
 # 為 macOS 系統庫,libvorbis/FLAC/png/freetype 在 mingw 交叉編譯的驗證中證實 SCI 引擎
 # 不需要——見 BUILD.md,故不特地為它們自編/brew,保持依賴面最小)。
 #
 # 首次執行可能需依 runner 環境微調(ScummVM 版本 drift、SDL release tarball 網址等)。
-# 中文資料本身(translation.tsv/qfg1_big5.fnt/view-pic patch)不在此 workflow 產生,
+# 中文資料本身(translation.tsv/lsl1_big5.fnt/view-pic patch)不在此 workflow 產生,
 # 由 tools/package_macos_data.sh 在 build 完成後注入。
 
 on:
@@ -31,7 +31,7 @@ env:
   # SCI-only 精簡:關掉所有外部媒體/格式/網路庫。理由:
   #  1) scummvm-static 對這些庫要 MacPorts 式「靜態 .a」,runner 沒有(libz.a/libbz2.a 是系統庫,brew 無 .a)。
   #  2) brew 的 .a 是 arm64-only,x86_64 弧(Rosetta)連進去會架構不符。
-  # QFG1 SCI 只需 SDL2(自編 universal)+ 內建 nuked-opl(AdLib)+ 內建 Big5Font,不需 freetype/vorbis/png…。
+  # LSL1 AGI+SCI 只需 SDL2(自編 universal)+ 內建 nuked-opl(AdLib)+ 內建 Big5Font,不需 freetype/vorbis/png…。
   LEAN_FLAGS: >-
     --disable-ogg --disable-vorbis --disable-tremor --disable-flac --disable-mad
     --disable-faad --disable-mpcdec --disable-openmpt --disable-mikmod
@@ -101,9 +101,9 @@ jobs:
           set -euo pipefail
           export CXXFLAGS="-arch arm64 -mmacosx-version-min=${MIN_OS}"
           export LDFLAGS="$CXXFLAGS"
-          ./configure --disable-all-engines --enable-engine=sci --disable-detection-full \
+          ./configure --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full \
             --disable-mt32emu --enable-release $LEAN_FLAGS --with-sdl-prefix="$RUNNER_TEMP/sdl-arm64"
-          grep -q "^ENABLE_SCI" config.mk || { echo "### sci engine 未編入(arm64) ###"; exit 12; }
+          grep -q "^ENABLE_SCI" config.mk && grep -q "^ENABLE_AGI" config.mk || { echo "### agi/sci engine 未編入(arm64) ###"; exit 12; }
           grep -q "^SDL_BACKEND = 1" config.mk || { echo "### SDL 未偵測到(arm64) ###"; exit 13; }
           make -j"$(sysctl -n hw.ncpu)" scummvm-static
 
@@ -115,7 +115,7 @@ jobs:
             set -euo pipefail
             export CXXFLAGS='-arch x86_64 -mmacosx-version-min=${MIN_OS}'
             export LDFLAGS=\"\$CXXFLAGS\"
-            ./configure --disable-all-engines --enable-engine=sci --disable-detection-full \
+            ./configure --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full \
               --disable-mt32emu --enable-release $LEAN_FLAGS --with-sdl-prefix='$RUNNER_TEMP/sdl-x86_64'
             grep -q '^ENABLE_SCI' config.mk || { echo '### sci engine 未編入(x86_64) ###'; exit 12; }
             grep -q '^SDL_BACKEND = 1' config.mk || { echo '### SDL 未偵測到(x86_64) ###'; exit 13; }
@@ -175,26 +175,26 @@ jobs:
           set -euo pipefail
           OUT="$GITHUB_WORKSPACE/dist-macos"
           mkdir -p "$OUT"
-          tar czf "$OUT/QFG1-CHT-engine-macos-universal.tar.gz" ScummVM.app
-          hdiutil create -volname "QFG1-CHT" -srcfolder ScummVM.app -ov -format UDZO \
-            "$OUT/QFG1-CHT-engine-macos-universal.dmg"
+          tar czf "$OUT/LSL1-CHT-engine-macos-universal.tar.gz" ScummVM.app
+          hdiutil create -volname "LSL1-CHT" -srcfolder ScummVM.app -ov -format UDZO \
+            "$OUT/LSL1-CHT-engine-macos-universal.dmg"
           ls -la "$OUT"
 
       - name: 組裝 VGA / EGA 中文資料包(tools/package_macos_data.sh)
         run: |
-          bash tools/package_macos_data.sh dist-macos/QFG1-CHT-engine-macos-universal.tar.gz vga dist-macos/out-vga
-          bash tools/package_macos_data.sh dist-macos/QFG1-CHT-engine-macos-universal.tar.gz ega dist-macos/out-ega
+          bash tools/package_macos_data.sh dist-macos/LSL1-CHT-engine-macos-universal.tar.gz vga dist-macos/out-vga
+          bash tools/package_macos_data.sh dist-macos/LSL1-CHT-engine-macos-universal.tar.gz ega dist-macos/out-ega
 
       - uses: actions/upload-artifact@v4
         with:
           name: qfg1-cht-macos-vga
           path: |
             dist-macos/out-vga/*
-            dist-macos/QFG1-CHT-engine-macos-universal.dmg
+            dist-macos/LSL1-CHT-engine-macos-universal.dmg
 
       - uses: actions/upload-artifact@v4
         with:
           name: qfg1-cht-macos-ega
           path: |
             dist-macos/out-ega/*
-            dist-macos/QFG1-CHT-engine-macos-universal.dmg
+            dist-macos/LSL1-CHT-engine-macos-universal.dmg
