@@ -28,13 +28,19 @@ shot bar_exterior.png
 #     如未進門請重跑，或改互動 docker exec 手動微調 click/Up。已驗證成品見 out/scene/ega/*.png。
 TYPE "open door"; sleep 0.4; K Return; sleep 2   # -> 「好。」門開
 K Return; sleep 1                                 # 關訊息
-xdotool mousemove --window "$WID" 258 355 click 1; sleep 3   # 對準門正下方(click-walk)
-K Up; sleep 10                                     # 直直往上走進門 -> 內部(需足夠時間觸發換場)
+# 對準門正下方走過去（click-walk），給足抵達時間
+xdotool mousemove --window "$WID" 258 358 click 1; sleep 5
+# 分段直直往上走進門 -> 觸發換場到內部（用多段 Up 確保走到門口再穿門）
+for u in 1 2 3 4 5; do K Up; sleep 3; done
+K Up; sleep 4
 shot bar_interior.png
 
-# 場景3：對酒保講話 -> 中文對白
+# 場景3：對酒保講話 -> 中文對白（若已進內部，酒保就在吧檯）
 TYPE "talk to bartender"; sleep 0.4; K Return; sleep 4
 shot npc_dialogue.png
+# 備援：若沒對到，再往吧檯走一下並看四周
+K Return; sleep 1; TYPE "look"; sleep 0.3; K Return; sleep 3
+shot look_inside.png
 
 kill $GPID 2>/dev/null
 echo "=== done ==="
