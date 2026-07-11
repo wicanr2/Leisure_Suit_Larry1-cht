@@ -43,6 +43,13 @@ dcard(){ # $1 out $2 中文金句 $3 場景標
     -fill "#ffffff18" -pointsize 320 -gravity northwest -annotate +40-40 '"' \
     -fill "$TEXT" -gravity center -pointsize 52 -annotate +0-10 "$2" \
     -fill "$ACCENT" -font "$FR" -pointsize 26 -gravity south -annotate +0+50 "$3" "$1"; }
+hero(){ # $1 out $2 真實遊戲內中文標題截圖 $3 副標 —— 片頭放大亮相，復古感
+  # 截圖放大近全幅(保留原像素風，用 -filter point 硬放大不糊),加霓虹外框 + 下方副標帶
+  convert -size ${W}x${H} "radial-gradient:${BG_L}-${BG_D}" "$TMP/hbg.png"
+  convert "/hero.png" -filter point -resize 960x600 \
+    -bordercolor "$ACC2" -border 2 -bordercolor "$ACCENT" -border 4 "$TMP/hsc.png"
+  convert "$TMP/hbg.png" \( "$TMP/hsc.png" \) -gravity center -geometry +0-28 -composite \
+    -font "$FR" -fill "$ACCENT" -gravity south -pointsize 30 -annotate +0+44 "$3" "$1"; }
 render(){ # $1 png $2 mp4 $3 秒
   local FO; FO=$(awk "BEGIN{print $3-0.5}")
   ffmpeg -y -loglevel error -loop 1 -i "$1" -t "$3" -r $FPS \
@@ -54,6 +61,11 @@ i=0; LIST="$TMP/list.txt"; : > "$LIST"
 add(){ render "$1" "$TMP/s$(printf %02d $i).mp4" "$2"; echo "file '$TMP/s$(printf %02d $i).mp4'" >> "$LIST"; i=$((i+1)); }
 
 card "$TMP/00.png" "$TITLE_ZH" "$TITLE_EN" "$SUB"; add "$TMP/00.png" 6
+# 中文標題亮相（真實遊戲畫面放大，復古感）—— 需掛載 /hero.png
+if [ -f /hero.png ]; then
+  if [ "$ED" = ega ]; then HSUB='1987 原版經典重現 · 全程繁體中文'; else HSUB='1991 VGA 重製 · 全程繁體中文'; fi
+  hero "$TMP/hero.png" _ "$HSUB"; add "$TMP/hero.png" 5
+fi
 # 截圖輪播（依 shots 目錄）
 n=1
 for f in $(ls /shots | sort); do
