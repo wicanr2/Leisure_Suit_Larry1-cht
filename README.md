@@ -19,6 +19,14 @@
 
 *左：1987 EGA（AGI 引擎，16 色）｜右：1991 VGA（SCI 引擎，256 色）。同一款遊戲、兩個世代，這次都是中文。*
 
+連**標題畫面**都說中文了——引擎在遊戲內的標題畫面上疊繪「幻想空間」，保留原本經典的英文 logo：
+
+| 1987 EGA 標題 | 1991 VGA 標題 |
+|:---:|:---:|
+| ![EGA 中文標題](docs/screenshot-title-cht-ega.png) | ![VGA 中文標題](docs/screenshot-title-cht-vga.png) |
+
+*不改遊戲原始美術，由引擎在標題畫面 render 時把「幻想空間」點陣標題疊上（EGA 對齊 16 色調色盤、VGA 對映當前 palette）。*
+
 ---
 
 ## 目錄
@@ -98,6 +106,17 @@
 > 「你在 Lefty 酒吧外。霓虹燈的魔力真妙不可言，不是嗎？」
 >
 > <sub>— VGA 版走進第一個場景時的旁白（本專案實際譯文）。推門進去，你會發現裡頭是「你見過最骯髒下流的酒吧」。</sub>
+
+| 1987 EGA：站在老左酒吧門口 | 1991 VGA：同一扇門，256 色重製 |
+|:---:|:---:|
+| ![EGA 酒吧外觀](docs/scene-ega-bar_exterior.png) | ![VGA 酒吧外觀](docs/scene-vga-bar_exterior.png) |
+
+推門進去，霓虹、駝鹿頭標本、點唱機、牆上的裸女畫——還有一屋子等著吐槽你的酒客：
+
+| EGA 酒吧內部 · 中文對白 | VGA 酒吧內部 · 中文對白 |
+|:---:|:---:|
+| ![EGA 酒吧內部](docs/scene-ega-npc_dialogue.png) | ![VGA 酒吧內部](docs/scene-vga-npc_dialogue.png) |
+| 「呸！你聞起來像用過的消防栓！」 | 「為啥不先在吧檯前坐下？」 |
 
 ---
 
