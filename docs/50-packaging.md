@@ -10,12 +10,13 @@
 - 實測：xvfb 下啟動，log 確認 `AGI-CHT: 載入 1466 則翻譯`（EGA）/ SCI target 執行，畫面非黑。
 - 免 FUSE：`--appimage-extract-and-run`。
 
-## Windows ⚙️（mingw 交叉編譯）
+## Windows ✅（mingw 交叉編譯，已完成）
 
 - docker `qfg1-mingw`（含 SDL2 mingw devel + 靜態 zlib）。
 - **踩雷**：source 樹複製給 Windows build 時**不可排除 `config.guess`/`config.sub`**，否則 configure `Checking endianness... unknown` 直接失敗。
 - configure：`--host=x86_64-w64-mingw32 --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full --disable-mt32emu`。
-- 產出 `scummvm.exe` + `SDL2.dll` + `libwinpthread-1.dll` + 遊戲資料 + 中文資產 + `.bat` 啟動器。
+- `tools/package_windows.sh <ega|vga>` → `scummvm.exe`(strip) + `SDL2.dll` + `libwinpthread-1.dll` + 遊戲資料 + 中文資產 + `.bat` 啟動器（自動 --add 遊戲並啟動中文 target）。
+- 產出：`dist-all/幻想空間-EGA-windows-x64.zip`(~11M)、`幻想空間-VGA-windows-x64.zip`(~13M)。
 
 ## macOS 🍎（GitHub Actions，`.github/workflows/build-macos.yml`）
 
