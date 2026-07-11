@@ -1,15 +1,18 @@
 diff --git a/engines/agi/agi.cpp b/engines/agi/agi.cpp
-index 95d4ad4082..732924cb72 100644
+index 95d4ad4082..9c10ac3ca1 100644
 --- a/engines/agi/agi.cpp
 +++ b/engines/agi/agi.cpp
-@@ -529,6 +529,7 @@ void AgiEngine::initialize() {
- 	_inventory = new InventoryMgr(this, _gfx, _text, _systemUI);
- 
- 	_font->init();
-+	_gfx->loadChtResources(); // 繁體中文化：須在 initVideo 前（依 _chtEnabled 決定拉 640x400 hi-res）
- 	_gfx->initVideo();
- 
- 	_text->init(_systemUI);
+@@ -521,6 +521,10 @@ void AgiEngine::initialize() {
+ 	_words = new Words(this);
+ 	_font = new GfxFont(this);
+ 	_gfx = new GfxMgr(this, _font);
++	// 繁體中文化：須在 SystemUI 建構前（其建構子依 _chtEnabled 決定系統 UI 是否用中文），
++	// 也在 initVideo 前（initVideo 依 _chtEnabled 決定拉 640x400 hi-res）。
++	// 只載 lsl_big5.fnt/translation.tsv，不依賴 _font->init()。
++	_gfx->loadChtResources();
+ 	_sound = new SoundMgr(this, _mixer);
+ 	_picture = new PictureMgr(this, _gfx);
+ 	_sprites = new SpritesMgr(this, _gfx);
 diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
 index 1bb1d20232..dd6c5b4163 100644
 --- a/engines/agi/graphics.cpp
@@ -285,6 +288,37 @@ index 70ce126d9b..030c9762ec 100644
  }
  
  } // End of namespace Agi
+diff --git a/engines/agi/systemui.cpp b/engines/agi/systemui.cpp
+index 40cd61af33..9002b6b7bd 100644
+--- a/engines/agi/systemui.cpp
++++ b/engines/agi/systemui.cpp
+@@ -145,6 +145,26 @@ SystemUI::SystemUI(AgiEngine *vm, GfxMgr *gfx, TextMgr *text) {
+ 		break;
+ 	}
+ 
++	// 繁體中文化：EGA/AGI 以「Big5 字型檔存在」啟用中文（不帶 --language，故 getLanguage()
++	// 不是 ZH_TWN，不能用 case 攔）。改用 _gfx->chtEnabled() 覆蓋系統 UI（道具欄/暫停/存讀檔）
++	// 為 Big5。狀態列 Score/Sound 保留英文（非 messageBox 路徑，Big5 渲染風險高）。字皆在 EGA 字庫。
++	if (_gfx->chtEnabled()) {
++		_textPause = "  \xB9\x43\xC0\xB8\xBC\xC8\xB0\xB1\xA1\x43\n\xAB\xF6 Enter \xC4\x7E\xC4\xF2\xA1\x43";
++		_textRestart = "\xAB\xF6 ENTER \xAD\xAB\xB7\x73\xB6\x7D\xA9\x6C\xB9\x43\xC0\xB8\xA1\x43\n\n\xAB\xF6 ESC \xC4\x7E\xC4\xF2\xA5\xD8\xAB\x65\xAA\xBA\xB9\x43\xC0\xB8\xA1\x43";
++		_textQuit = "\xAB\xF6 ENTER \xC2\xF7\xB6\x7D\xA1\x43\n\xAB\xF6 ESC \xC4\x7E\xC4\xF2\xB9\x43\xAA\xB1\xA1\x43";
++		_textInventoryYouAreCarrying = "\xA7\x41\xA8\xAD\xA4\x57\xB1\x61\xB5\xDB\xA1\x47";
++		_textInventoryNothing = "\xAA\xC5\xAA\xC5\xA6\x70\xA4\x5D";
++		_textInventorySelectItems = "\xAB\xF6 ENTER \xBF\xEF\xA8\xFA\xA1\x41ESC \xA8\xFA\xAE\xF8";
++		_textInventoryReturnToGame = "\xAB\xF6\xA5\xF4\xB7\x4E\xC1\xE4\xA6\x5E\xA8\xEC\xB9\x43\xC0\xB8";
++		_textSaveGameSelectSlot = "\xA5\xCE\xA4\xE8\xA6\x56\xC1\xE4\xBF\xEF\xBE\xDC\xAD\x6E\xA6\x73\xC0\xC9\xAA\xBA\xC4\xE6\xA6\xEC\xA1\x43\xAB\xF6 ENTER \xA6\x73\xA4\x4A\xB8\xD3\xC4\xE6\xA1\x41ESC \xA8\xFA\xAE\xF8\xA6\x73\xC0\xC9\xA1\x43";
++		_textSaveGameEnterDescription = "\xB7\x51\xAB\xE7\xBB\xF2\xB4\x79\xAD\x7A\xB3\x6F\xAD\xD3\xA6\x73\xC0\xC9\xA1\x48\n\n";
++		_textSaveGameVerify = "\xA7\x59\xB1\x4E\xA6\x73\xC0\xC9\xA1\x41\n\xB4\x79\xAD\x7A\xAC\xB0\xA1\x47\n\n%s\n\n\xC0\xC9\xAE\xD7\xA1\x47\n%s\n\n\xAB\xF6 ENTER \xC4\x7E\xC4\xF2\xA1\x43\n\xAB\xF6 ESC \xA8\xFA\xAE\xF8\xA1\x43";
++		_textRestoreGameNoSlots = "ScummVM \xA6\x73\xC0\xC9\xA5\xD8\xBF\xFD\xA4\xA4\n\n\xA8\x53\xA6\xB3\xA5\x69\xB8\xFC\xA4\x4A\xAA\xBA\xA6\x73\xC0\xC9\xA1\x43\n\n\xAB\xF6 ENTER \xC4\x7E\xC4\xF2\xA1\x43";
++		_textRestoreGameSelectSlot = "\xA5\xCE\xA4\xE8\xA6\x56\xC1\xE4\xBF\xEF\xBE\xDC\xAD\x6E\xB8\xFC\xA4\x4A\xAA\xBA\xA6\x73\xC0\xC9\xA1\x43\xAB\xF6 ENTER \xB8\xFC\xA4\x4A\xA1\x41ESC \xA8\xFA\xAE\xF8\xA1\x43";
++		_textRestoreGameError = "\xB8\xFC\xA4\x4A\xA6\x73\xC0\xC9\xAE\xC9\xB5\x6F\xA5\xCD\xBF\xF9\xBB\x7E\xA1\x43\n\xAB\xF6 ENTER \xC2\xF7\xB6\x7D\xA1\x43";
++		_textRestoreGameVerify = "\xA7\x59\xB1\x4E\xB8\xFC\xA4\x4A\xA6\x73\xC0\xC9\xA1\x41\n\xB4\x79\xAD\x7A\xAC\xB0\xA1\x47\n\n%s\n\n\xA8\xD3\xA6\xDB\xC0\xC9\xAE\xD7\xA1\x47\n%s\n\n\xAB\xF6 ENTER \xC4\x7E\xC4\xF2\xA1\x43\n\xAB\xF6 ESC \xA8\xFA\xAE\xF8\xA1\x43";
++	}
++
+ 	// Now replace some text again for some render modes
+ 	switch (_vm->_renderMode) {
+ 	case Common::kRenderAmiga:
 diff --git a/engines/agi/text.cpp b/engines/agi/text.cpp
 index cc02816bce..cda72a8904 100644
 --- a/engines/agi/text.cpp
