@@ -18,6 +18,14 @@
 - `tools/package_windows.sh <ega|vga>` → `scummvm.exe`(strip) + `SDL2.dll` + `libwinpthread-1.dll` + 遊戲資料 + 中文資產 + `.bat` 啟動器（自動 --add 遊戲並啟動中文 target）。
 - 產出：`dist-all/幻想空間-EGA-windows-x64.zip`(~11M)、`幻想空間-VGA-windows-x64.zip`(~13M)。
 
+## 推廣影片 🎬（`tools/make_promo.sh`）
+
+- EGA / VGA 各一支，每版獨立 theme（EGA 霓虹青/桃、VGA 暖橘）。分鏡：標題卡 → 遊戲截圖幻燈片（配中文字幕）→ 中文金句卡 → 結尾卡。
+- 靜態圖 + fade（不用 zoompan，避免 CPU 爆量）；`docker --cpus=2`、libx264 `-preset veryfast`。
+- **[HARD] rulebook 93**：配樂用原版遊戲 AdLib 音樂（ScummVM `SDL_AUDIODRIVER=disk` 側錄），不自產。
+- 產出：`dist-all/幻想空間-ega-promo.mp4`（29s, ~1.2M）、`幻想空間-vga-promo.mp4`（34s, ~1.5M）。
+- **交付政策**：影片含原版音樂 → 只進 `dist-all/`（gitignore），公開散布前注意 Sierra 著作權。
+
 ## macOS 🍎（GitHub Actions，`.github/workflows/build-macos.yml`）
 
 - [HARD] **不用 brew sdl2**（2026 起是 sdl2-compat shim → dylibbundler 抓不到 → 玩家端黑畫面）；CI 自編 pinned SDL2 2.30.9 源碼，universal 用「每弧各編 + lipo」。
