@@ -14,7 +14,7 @@
 
 - docker `qfg1-mingw`（含 SDL2 mingw devel + 靜態 zlib）。
 - **踩雷**：source 樹複製給 Windows build 時**不可排除 `config.guess`/`config.sub`**，否則 configure `Checking endianness... unknown` 直接失敗。
-- configure：`--host=x86_64-w64-mingw32 --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full --disable-mt32emu`。
+- configure：`--host=x86_64-w64-mingw32 --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full`。
 - `tools/package_windows.sh <ega|vga>` → `scummvm.exe`(strip) + `SDL2.dll` + `libwinpthread-1.dll` + 遊戲資料 + 中文資產 + `.bat` 啟動器（自動 --add 遊戲並啟動中文 target）。
 - 產出：`dist-all/幻想空間-EGA-windows-x64.zip`(~11M)、`幻想空間-VGA-windows-x64.zip`(~13M)。
 
@@ -36,3 +36,12 @@
   - README 執行指令按版正確：EGA `--render-mode=ega lsl1`（不帶 `--language`，AGI 非英文會無法啟動）、VGA `--language=tw lsl1sci`。
   - **已驗證**：staging 來源 `fonts/`,`fonts_vga/` 與已出貨 Linux/Windows 的 `game/ega`,`game/vga` 中文資料位元一致（md5 相符）→ 三平台不 drift。
 - **待首次 CI 實跑**：SDL2 release tarball 網址 / ScummVM 版本 drift 可能需微調（見 workflow 註解），資料注入邏輯已本機驗證。
+
+## MT-32 音樂（2026-07-11，所有 ScummVM 中文化通用慣例）
+
+Roland MT-32 音樂遠優於 AdLib；LSL1 EGA/VGA 本就內附 MT32.DRV。**慣例：configure 一律不帶 `--disable-mt32emu`**（Munt 模擬器編入，`config.h` 應 `#define USE_MT32EMU`）。已改：Linux 本機 build、`build-macos.yml`（arm64+x86_64）、mingw configure、`apply_patches.sh`/`BUILD.md` 範例皆移除該 flag。
+
+實際發聲需 **MT-32 ROM**（`MT32_CONTROL.ROM`+`MT32_PCM.ROM`，**有版權，`.gitignore` 加 `*.ROM`，絕不入 GitHub**）：
+- **完整包（dist-all）**：`pkg_common.sh` `stage_mt32_rom()` 從本機 `MT32_ROM_SRC`（預設 `/home/anr2/cht/mt32`）取 1987 v1.07 control + PCM，改名放進包內 `game/`；`package_appimage.sh` AppRun / `package_windows.sh` .bat 加 `--music-driver=mt32 --extrapath=<游戲夾>`。有 ROM 才設預設（`stage_mt32_rom` 回傳值決定），無 ROM 自動退回不設。
+- **GitHub / patch-only / macOS CI**：不含 ROM、不設 mt32 預設（無 ROM 硬設會彈一次「MT-32 emulator cannot be used」阻擋框再回退 AdLib）。玩家自備 ROM 放遊戲夾後於音效選項選 Roland MT-32。
+- **驗證法**：跑起來 log 出現 `Falling back to MT32`（Munt 先找 CM32L 才回退＝MT32 ROM 成功載入）且無 `cannot be used` 即成功。已用打包好的 EGA AppImage 實測通過（標題畫面正常、無阻擋框）。

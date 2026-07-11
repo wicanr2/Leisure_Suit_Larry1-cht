@@ -38,3 +38,7 @@ game/
 out/
 tools/.cache/
 scummvm-win/
+
+# MT-32 ROM 有版權，絕不入版控/GitHub（完整包才由本機 /home/anr2/cht/mt32 附帶）
+*.ROM
+*.rom

@@ -37,4 +37,4 @@ for p in "$HERE"/patches/[0-9][0-9][0-9][0-9]-*.patch; do
 done
 
 echo ">> 完成。configure 範例(docker 內,flag 順序重要):"
-echo "   ./configure --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full --disable-mt32emu"
+echo "   ./configure --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full"

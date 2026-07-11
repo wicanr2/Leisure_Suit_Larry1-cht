@@ -3,6 +3,7 @@
 # 用法: package_windows.sh <ega|vga>   （需先 mingw build 出 scummvm-win/scummvm.exe）
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/tools/pkg_common.sh"   # stage_mt32_rom(完整包附 MT-32 ROM)
 ED="${1:?用法: package_windows.sh <ega|vga>}"
 DIST="$ROOT/dist-all"; mkdir -p "$DIST"
 EXE="$ROOT/scummvm-win/scummvm.exe"
@@ -21,13 +22,19 @@ docker run --rm qfg1-mingw cat /usr/x86_64-w64-mingw32/bin/SDL2.dll > "$STAGE/SD
 docker run --rm qfg1-mingw cat /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll > "$STAGE/libwinpthread-1.dll"
 cp -r "$ROOT/game/$ED/." "$STAGE/game/"
 
+# MT-32 ROM（完整包才附；有 ROM 才把音效驅動預設成 mt32）
+MT32ARGS=""
+if stage_mt32_rom "$STAGE/game"; then
+  MT32ARGS='--music-driver=mt32 --extrapath="%~dp0game"'
+fi
+
 # .bat 啟動器：自動加入 bundled 遊戲並啟動中文 target
 cat > "$STAGE/玩-幻想空間-繁中.bat" <<BAT
 @echo off
 chcp 950 >nul
 cd /d "%~dp0"
 scummvm.exe --add --path="%~dp0game" >nul 2>&1
-scummvm.exe $LAUNCH $TARGET
+scummvm.exe $LAUNCH $MT32ARGS $TARGET
 BAT
 
 OUT="$DIST/${LABEL}-windows-x64.zip"; rm -f "$OUT"

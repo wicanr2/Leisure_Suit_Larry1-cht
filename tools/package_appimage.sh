@@ -4,6 +4,7 @@
 # 用法: package_appimage.sh <ega|vga>
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/tools/pkg_common.sh"   # stage_mt32_rom(完整包附 MT-32 ROM)
 ED="${1:?用法: package_appimage.sh <ega|vga>}"
 STAGE="$ROOT/build/appimage"; DIST="$ROOT/dist-all"
 mkdir -p "$STAGE" "$DIST"
@@ -32,6 +33,12 @@ echo "   $(ls "$APPDIR/usr/lib" | wc -l) 個 .so"
 echo ">> 放入遊戲資料 + 中文字型/翻譯"
 cp -r "$ROOT/game/$ED/." "$APPDIR/usr/share/game/"
 
+# MT-32 ROM（完整包才附；有 ROM 才把音效驅動預設成 mt32，否則無 ROM 會彈阻擋框）
+MT32ARGS=""
+if stage_mt32_rom "$APPDIR/usr/share/game"; then
+  MT32ARGS="--music-driver=mt32 --extrapath=\"\$GAME\""
+fi
+
 # AppRun：首次執行把 bundled 遊戲加入設定並啟動中文 target
 cat > "$APPDIR/AppRun" <<APPRUN
 #!/bin/bash
@@ -40,7 +47,7 @@ export LD_LIBRARY_PATH="\$HERE/usr/lib:\${LD_LIBRARY_PATH:-}"
 GAME="\$HERE/usr/share/game"
 SCUMMVM="\$HERE/usr/bin/scummvm"
 "\$SCUMMVM" --add --path="\$GAME" >/dev/null 2>&1 || true
-exec "\$SCUMMVM" $RENDER $LANGOPT "$TARGET" "\$@"
+exec "\$SCUMMVM" $RENDER $LANGOPT $MT32ARGS "$TARGET" "\$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 

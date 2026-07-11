@@ -30,9 +30,12 @@ bash tools/apply_patches.sh scummvm-src
 ```bash
 docker run --rm -v "$PWD/scummvm-src:/src" -w /src qfg1-build bash -c \
   './configure --disable-all-engines --enable-engine=agi --enable-engine=sci \
-     --disable-detection-full --disable-mt32emu && make -j$(nproc)'
+     --disable-detection-full && make -j$(nproc)'
 ```
 > flag 順序重要：`--disable-all-engines` 必須在 `--enable-engine` 之前。
+> **MT-32 慣例（所有 ScummVM 中文化都套用）**：configure **不要**帶 `--disable-mt32emu`，讓 Munt MT-32 模擬器編入，玩家有 Roland MT-32 音樂可用（比 AdLib 好很多）。以 `grep USE_MT32EMU config.h` 應為 `#define`。實際發聲需 MT-32 ROM（`MT32_CONTROL.ROM`+`MT32_PCM.ROM`，有版權不隨引擎散布）：
+> - **完整包（dist-all）**：打包腳本自動從本機 `/home/anr2/cht/mt32` 附帶 ROM 並預設 `--music-driver=mt32`（開箱即用）。
+> - **GitHub / patch-only**：不含 ROM；玩家自備 ROM 放進遊戲資料夾（或 ScummVM extrapath）後於音效選項選「Roland MT-32」。無 ROM 又硬設 mt32 會彈一次阻擋框再回退 AdLib，故 patch 包不設 mt32 預設。
 
 ## 四、烘中文字型 + 翻譯表
 

@@ -102,7 +102,7 @@ jobs:
           export CXXFLAGS="-arch arm64 -mmacosx-version-min=${MIN_OS}"
           export LDFLAGS="$CXXFLAGS"
           ./configure --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full \
-            --disable-mt32emu --enable-release $LEAN_FLAGS --with-sdl-prefix="$RUNNER_TEMP/sdl-arm64"
+            --enable-release $LEAN_FLAGS --with-sdl-prefix="$RUNNER_TEMP/sdl-arm64"
           grep -q "^ENABLE_SCI" config.mk && grep -q "^ENABLE_AGI" config.mk || { echo "### agi/sci engine 未編入(arm64) ###"; exit 12; }
           grep -q "^SDL_BACKEND = 1" config.mk || { echo "### SDL 未偵測到(arm64) ###"; exit 13; }
           make -j"$(sysctl -n hw.ncpu)" scummvm-static
@@ -116,7 +116,7 @@ jobs:
             export CXXFLAGS='-arch x86_64 -mmacosx-version-min=${MIN_OS}'
             export LDFLAGS=\"\$CXXFLAGS\"
             ./configure --disable-all-engines --enable-engine=agi --enable-engine=sci --disable-detection-full \
-              --disable-mt32emu --enable-release $LEAN_FLAGS --with-sdl-prefix='$RUNNER_TEMP/sdl-x86_64'
+              --enable-release $LEAN_FLAGS --with-sdl-prefix='$RUNNER_TEMP/sdl-x86_64'
             grep -q '^ENABLE_SCI' config.mk || { echo '### sci engine 未編入(x86_64) ###'; exit 12; }
             grep -q '^SDL_BACKEND = 1' config.mk || { echo '### SDL 未偵測到(x86_64) ###'; exit 13; }
             make -j\"\$(sysctl -n hw.ncpu)\" scummvm-static
