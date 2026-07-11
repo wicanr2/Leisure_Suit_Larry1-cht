@@ -36,3 +36,4 @@ SNDDIR
 __pycache__/
 game/
 out/
+tools/.cache/
