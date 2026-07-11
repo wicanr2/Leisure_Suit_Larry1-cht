@@ -7,6 +7,9 @@
 #     -v "$PWD/out:/out" -v "$PWD/tools:/tools" qfg1-capture bash /tools/capture_scene_vga.sh
 # 關鍵：SCI debugger 只做「一次」teleport(room 110)；連續多次會不穩。room 110=Lefty's 內部(已知存在)。
 #      切勿 teleport 到不存在的 room（SCI 會 fatal error 直接關閉遊戲）。
+# ★ npc_dialogue.png（對酒保講話的中文對白）請改用 tools/capture_vga_bartender.sh：
+#   teleport 進 room 110 會跳過酒保初始化，拿不到正常對白；該腳本改從門口「合法開門」進店
+#   (存成 slot 2)再坐吧台 TALK 酒保，取得「你親切地跟酒保打了聲招呼:『哈囉。』」中文對白框。
 set -u
 export DISPLAY=:99 HOME=/tmp XDG_RUNTIME_DIR=/tmp
 mkdir -p /out/scene/vga
