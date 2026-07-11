@@ -1,8 +1,30 @@
 diff --git a/engines/sci/event.cpp b/engines/sci/event.cpp
-index 145d32f18a..22dee8a7bc 100644
+index 145d32f18a..693c687b6a 100644
 --- a/engines/sci/event.cpp
 +++ b/engines/sci/event.cpp
-@@ -314,6 +314,14 @@ SciEvent EventManager::getScummVMEvent() {
+@@ -198,6 +198,21 @@ SciEvent EventManager::getScummVMEvent() {
+ 	Common::EventManager *em = g_system->getEventManager();
+ 	Common::Event ev;
+ 
++	// 繁體中文化：追蹤年齡驗證房間（720）進出，離開即寫通過旗標（含首次手動通過）。
++	g_sci->chtVerifyRoomTick();
++
++	// 繁體中文化：年齡/成人問答一次性驗證——若已通過且排入了合成鍵（TAB 導覽 / ENTER 確認），
++	// 優先送出，讓遊戲自身腳本把游標移到正解選項並確認，玩家免重答。
++	if (g_sci->getLanguage() == Common::ZH_TWN && g_sci->chtVerified()) {
++		int synthKey = g_sci->chtVerifyPendingKey();
++		if (synthKey) {
++			input.type = kSciEventKeyDown;
++			input.character = synthKey;
++			input.mousePos = em->getMousePos();
++			return input;
++		}
++	}
++
+ 	// SCI does not generate separate events for mouse movement (it puts the
+ 	// current mouse position on every event, including non-mouse events), so
+ 	// skip past all mousemove events in the event queue
+@@ -314,6 +329,14 @@ SciEvent EventManager::getScummVMEvent() {
  
  	const Common::KeyCode scummVMKeycode = ev.kbd.keycode;
  
@@ -103,7 +125,7 @@ index eaed025a3c..a18876bbf5 100644
  	byte getColorDefaultVectorData() { return _colorDefaultVectorData; }
  
 diff --git a/engines/sci/graphics/text16.cpp b/engines/sci/graphics/text16.cpp
-index 9e5647f3d6..fe345a0449 100644
+index 9e5647f3d6..12ca7555bf 100644
 --- a/engines/sci/graphics/text16.cpp
 +++ b/engines/sci/graphics/text16.cpp
 @@ -210,6 +210,11 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId
@@ -133,7 +155,7 @@ index 9e5647f3d6..fe345a0449 100644
  	Draw(str.c_str(), 0, str.size(), orgFontId, orgPenColor);
  }
  
-@@ -569,6 +582,19 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
+@@ -569,6 +582,20 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
  	int16 textWidth, maxTextWidth, textHeight;
  	int16 offset = 0;
  	int16 hline = 0;
@@ -145,6 +167,7 @@ index 9e5647f3d6..fe345a0449 100644
 +		// 標題/警告畫面：Sturgeon 警告文出現時 = 開場標題畫面 → 待渲染後疊「幻想空間」中文標題
 +		if (strstr(text, "contains some elements of plot"))
 +			chtTitleScreen = true;
++		g_sci->chtVerifyOnText(text);   // 已驗證則偵測驗證對話(年齡選單/問答/提示)，排入自動作答
 +		const char *tr = g_sci->getChtTranslation(text);
 +		if (tr)
 +			text = tr;
@@ -153,7 +176,7 @@ index 9e5647f3d6..fe345a0449 100644
  	GuiResourceId previousFontId = GetFontId();
  	int16 previousPenColor = _ports->_curPort->penClr;
  	bool doubleByteMode = false;
-@@ -681,12 +707,27 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
+@@ -681,12 +708,27 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
  	}
  	SetFont(previousFontId);
  	_ports->penColor(previousPenColor);
@@ -182,7 +205,7 @@ index 9e5647f3d6..fe345a0449 100644
  	Common::String text;
  	if (!g_sci->isLanguageRTL())
  		text = textOrig;
-@@ -696,15 +737,25 @@ void GfxText16::DrawString(const Common::String &textOrig) {
+@@ -696,15 +738,25 @@ void GfxText16::DrawString(const Common::String &textOrig) {
  	Draw(text.c_str(), 0, text.size(), previousFontId, previousPenColor);
  	SetFont(previousFontId);
  	_ports->penColor(previousPenColor);
@@ -308,10 +331,10 @@ index 94d96a6e38..b4c689eb87 100644
  	graphics/fontsjis.o \
  	graphics/macfont.o \
 diff --git a/engines/sci/sci.cpp b/engines/sci/sci.cpp
-index b4d28b797c..6269fc3c7f 100644
+index b4d28b797c..181866155d 100644
 --- a/engines/sci/sci.cpp
 +++ b/engines/sci/sci.cpp
-@@ -19,6 +19,9 @@
+@@ -19,10 +19,14 @@
   *
   */
  
@@ -321,7 +344,12 @@ index b4d28b797c..6269fc3c7f 100644
  #include "common/system.h"
  #include "common/config-manager.h"
  #include "common/debug-channels.h"
-@@ -50,6 +53,7 @@
+ #include "common/translation.h"
++#include "common/savefile.h"
+ 
+ #include "engines/advancedDetector.h"
+ #include "engines/util.h"
+@@ -50,6 +54,7 @@
  #include "sci/sound/soundcmd.h"
  #include "sci/graphics/animate.h"
  #include "sci/graphics/cache.h"
@@ -329,7 +357,7 @@ index b4d28b797c..6269fc3c7f 100644
  #include "sci/graphics/compare.h"
  #include "sci/graphics/controls16.h"
  #include "sci/graphics/coordadjuster.h"
-@@ -142,6 +146,12 @@ SciEngine::SciEngine(OSystem *syst, const ADGameDescription *desc, SciGameId gam
+@@ -142,6 +147,12 @@ SciEngine::SciEngine(OSystem *syst, const ADGameDescription *desc, SciGameId gam
  	assert(g_sci == nullptr);
  	g_sci = this;
  
@@ -342,7 +370,7 @@ index b4d28b797c..6269fc3c7f 100644
  	const Common::FSNode gameDataDir(ConfMan.getPath("path"));
  
  	SearchMan.addSubDirectoryMatching(gameDataDir, "actors");	// KQ6 hi-res portraits
-@@ -289,6 +299,36 @@ Common::Error SciEngine::run() {
+@@ -289,6 +300,37 @@ Common::Error SciEngine::run() {
  	}
  */
  
@@ -374,12 +402,13 @@ index b4d28b797c..6269fc3c7f 100644
 +	if (getLanguage() == Common::ZH_TWN) {
 +		loadChtTranslation();
 +		loadChtTitleOverlay();
++		chtLoadVerifiedState();   // 有存檔或 .chtok 旗標 → 之後啟動自動通過年齡驗證
 +	}
 +
  	// Add the after market patches for the specified game, if they exist
  	_resMan->addNewGMPatch(_gameId);
  	_resMan->addNewD110Patch(_gameId);
-@@ -585,6 +625,19 @@ void SciEngine::initGraphics() {
+@@ -585,6 +627,19 @@ void SciEngine::initGraphics() {
  
  	_gfxCache = new GfxCache(_resMan, _gfxScreen, _gfxPalette16);
  
@@ -399,7 +428,7 @@ index b4d28b797c..6269fc3c7f 100644
  #ifdef ENABLE_SCI32
  	if (getSciVersion() >= SCI_VERSION_2) {
  		// SCI32 graphic objects creation
-@@ -831,7 +884,137 @@ const char *SciEngine::getGameIdStr() const {
+@@ -831,7 +886,252 @@ const char *SciEngine::getGameIdStr() const {
  	return _gameDescription->gameId;
  }
  
@@ -410,6 +439,121 @@ index b4d28b797c..6269fc3c7f 100644
 +	if (it == _chtTranslation.end())
 +		return nullptr;
 +	return it->_value.c_str();
++}
++
++// ── CHT：年齡/成人問答一次性驗證（VGA/SCI，room/script 720）─────────────────────
++// 設計說明（創舉，同 AGI 版）：不「背答案」，而是即時讀遊戲自身 script 720 的 local L4。
++// LSL1 的 text.722 / text.730 兩份題庫，每題文字第一個字元就是正解編號（1-4），遊戲載入
++// 題目時把它複製進 script 720 的 local[4]。因此：L4∈[1,4] = 這是一道題，正解就是 L4；
++// L4=0 = 目前顯示的是片頭/警告對話（非選擇題），直接 ENTER 前進即可。作答方式沿用玩家
++// 操作：TAB 在選項間移動、ENTER 確認，故按 TAB×(L4-1) 再 ENTER 即選到正解。
++// 觸發條件：曾通過驗證（存檔存在或 .chtok 旗標）→ 之後每次啟動自動作答，玩家免重答。
++
++// 讀 script 720 的 local[idx]；讀不到（腳本未載入/越界）回 -32768。
++int16 SciEngine::chtReadVerifyLocal(int idx) {
++	if (!_gamestate)
++		return -32768;
++	SegmentId seg = _gamestate->_segMan->getScriptSegment(720);
++	if (!seg)
++		return -32768;
++	Script *scr = _gamestate->_segMan->getScriptIfLoaded(seg);
++	if (!scr || !scr->getLocalsBegin() || idx < 0 || idx >= (int)scr->getLocalsCount())
++		return -32768;
++	return (int16)scr->getLocalsBegin()[idx].getOffset();
++}
++
++// 啟動時：若已有存檔（玩家先前必已通過驗證），或存在 .chtok 旗標檔，即視為已驗證。
++void SciEngine::chtLoadVerifiedState() {
++	if (getLanguage() != Common::ZH_TWN)
++		return;
++	Common::SaveFileManager *sfm = g_system->getSavefileManager();
++	// 條件一：任何存檔存在（LSL1 SCI 存檔名 <target>.### 或 <target>.sav 系列）。
++	if (!sfm->listSavefiles(_targetName + ".###").empty() ||
++	    !sfm->listSavefiles(_targetName + ".s##").empty() ||
++	    !sfm->listSavefiles(_targetName + ".0##").empty()) {
++		_chtVerified = true;
++	}
++	// 條件二：先前已寫過通過旗標。
++	if (!sfm->listSavefiles(_targetName + ".chtok").empty())
++		_chtVerified = true;
++	if (_chtVerified)
++		debug(1, "CHT: age-verify auto-answer ENABLED (save or flag present)");
++}
++
++// 寫通過旗標檔（冪等；openForSaving 會覆蓋）。之後即使刪存檔也免重答。
++void SciEngine::chtMarkVerified() {
++	_chtVerified = true;
++	Common::SaveFileManager *sfm = g_system->getSavefileManager();
++	Common::WriteStream *ws = sfm->openForSaving(_targetName + ".chtok", false);
++	if (ws) {
++		ws->writeString("ok\n");
++		ws->finalize();
++		delete ws;
++	}
++	debug(1, "CHT: age-verify passed → wrote .chtok flag");
++}
++
++// 事件層取用：回傳下一個待注入的合成鍵（TAB/ENTER），佇列空回 0。
++int SciEngine::chtVerifyPendingKey() {
++	if (_chtVerifyKeyHead >= _chtVerifyKeyTail) {
++		_chtVerifyKeyHead = _chtVerifyKeyTail = 0;
++		return 0;
++	}
++	return _chtVerifyKeyQueue[_chtVerifyKeyHead++];
++}
++
++// 每輪：追蹤 room 720 進出。曾進入 720 後又離開 = 通過驗證（不論本次是自動或手動作答）→
++// 寫旗標，讓「首次手動通過」的玩家下次啟動也自動作答。
++void SciEngine::chtVerifyRoomTick() {
++	if (getLanguage() != Common::ZH_TWN || _chtVerifyDone || !_gamestate)
++		return;
++	uint16 room = _gamestate->currentRoomNumber();
++	if (room == 720) {
++		_chtVerifyWasIn720 = true;
++	} else if (room != 0 && _chtVerifyWasIn720) {
++		_chtVerifyDone = true;
++		debug(1, "CHT: left age-verify room 720 → now room %d (verify complete)", room);
++		chtMarkVerified();
++	}
++}
++
++// Box 顯示文字時呼叫：若正在 room 720 且已通過，讀 L4 決定要送出的合成鍵。
++void SciEngine::chtVerifyOnText(const char *text) {
++	if (!_chtVerified || _chtVerifyDone || !_gamestate || !text)
++		return;
++	if (_gamestate->currentRoomNumber() != 720)
++		return;
++	// 仍有鍵在佇列 → 上一則對話尚未處理完，先別重排（避免對同一對話重複作答）。
++	if (_chtVerifyKeyHead < _chtVerifyKeyTail)
++		return;
++
++	// 年齡選單（6 選項 2×3 格：under 15/16-18/19-39/40-65/66-99/over 100）。
++	// 焦點起於第 1 格「under 15」，TAB 逐格移動；選成人格再 ENTER。目標「40 to 65」（第 4 格），
++	// 即使 TAB 數差一格，鄰格 19-39 / 66-99 仍是成人，容錯較大 → TAB×3 + ENTER。
++	if (strstr(text, "how old are you")) {
++		if (_chtVerifyLastId == 40)   // 已對本次年齡選單作答過
++			return;
++		_chtVerifyLastId = 40;
++		for (int i = 0; i < 3 && _chtVerifyKeyTail < 7; i++)
++			_chtVerifyKeyQueue[_chtVerifyKeyTail++] = kSciKeyTab;
++		_chtVerifyKeyQueue[_chtVerifyKeyTail++] = kSciKeyEnter;
++		debug(1, "CHT: auto age-menu → TAB x3 + ENTER (target 40 to 65)");
++		return;
++	}
++
++	int16 l4 = chtReadVerifyLocal(4);   // 正解編號 1-4（成人問答；即題庫文字首字元）
++	int16 l5 = chtReadVerifyLocal(5);   // 題目序號：換新題時改變，選項/確認/空白畫面維持不變
++
++	if (l4 >= 1 && l4 <= 4) {
++		// 成人問答（a/b/c/d 字母選項）：正解編號存於 local[4]（1→a…4→d），直接按對應字母鍵作答。
++		// 以 L5 變化偵測「新題」：同一題的各選項回顯、確認畫面 L5 不變 → 不重複作答。
++		if (l5 == _chtVerifyLastId)
++			return;
++		_chtVerifyLastId = l5;
++		_chtVerifyKeyQueue[_chtVerifyKeyTail++] = 'a' + (l4 - 1);
++		debug(1, "CHT: auto-answer Q (id=%d) → '%c'", l5, 'a' + (l4 - 1));
++	}
++	// 其餘 L4=0 文字（片頭/警告/選項回顯）不主動注入，避免誤選年齡選單焦點格。
 +}
 +
 +static Common::String unescapeCht(const Common::String &in) {
@@ -538,7 +682,7 @@ index b4d28b797c..6269fc3c7f 100644
  }
  
 diff --git a/engines/sci/sci.h b/engines/sci/sci.h
-index d936170077..17919f297c 100644
+index d936170077..efa54ba7ce 100644
 --- a/engines/sci/sci.h
 +++ b/engines/sci/sci.h
 @@ -26,6 +26,8 @@
@@ -550,7 +694,7 @@ index d936170077..17919f297c 100644
  #include "sci/engine/vm_types.h"	// for Selector
  #include "sci/debug.h"	// for DebugState
  #include "sci/detection.h" // Shared code between detection and engine
-@@ -185,6 +187,23 @@ public:
+@@ -185,6 +187,34 @@ public:
  	const char *getGameIdStr() const;
  	Common::Language getLanguage() const;
  
@@ -571,10 +715,21 @@ index d936170077..17919f297c 100644
 +	void loadChtTitleOverlay();   // 載入 lsl_title.ovl（若存在）
 +	void drawChtTitleOverlay();   // 把中文標題疊到當前 display 上（nearest-map 到當前 palette）
 +
++	// CHT: 年齡/成人問答一次性驗證（VGA/SCI，room/script 720）。
++	// 一旦通過（或偵測到已有存檔），之後每次啟動自動作答，玩家免重答。
++	// 不「記答案」，而是即時讀遊戲自身 script 720 的 local L4（正解按鈕 1-4）→ 決定按幾次 TAB。
++	bool chtVerified() const { return _chtVerified; }
++	void chtLoadVerifiedState();          // 啟動時：有存檔或 .chtok 旗標檔 → 設 _chtVerified
++	void chtMarkVerified();               // 離開 room 720 → 寫 .chtok 旗標檔
++	void chtVerifyOnText(const char *text); // Box 顯示對話時偵測驗證畫面 → 排入自動導覽
++	// 事件層取用：待送出的合成鍵（0=無）。回傳後清空計數。
++	int  chtVerifyPendingKey();           // 下一個要注入的 SCI 鍵碼（TAB/ENTER），無則 0
++	void chtVerifyRoomTick();             // 每輪檢查是否已離開 room 720 → 標記完成
++
  	/**
  	 * Returns true if the game's language direction is Right To Left.
  	 * RTL support did not exist in the original SCI engine.
-@@ -406,6 +425,15 @@ private:
+@@ -406,6 +436,25 @@ private:
  
  	const ADGameDescription *_gameDescription;
  	const SciGameId _gameId;
@@ -587,6 +742,16 @@ index d936170077..17919f297c 100644
 +	byte   _chtTitlePalR[256], _chtTitlePalG[256], _chtTitlePalB[256]; // 內嵌調色盤 RGB
 +	int    _chtTitleNumColors;
 +	bool   _chtTitleDrawn;        // 本畫面已疊過（避免重複全螢幕 present）
++
++	// CHT 一次性年齡驗證自動作答狀態（room/script 720）
++	bool   _chtVerified = false;    // 已通過（存檔存在或 .chtok 旗標）→ 啟用自動作答
++	bool   _chtVerifyDone = false;  // 本次啟動已離開 720、無需再自動作答
++	bool   _chtVerifyWasIn720 = false; // 本次啟動曾進入 room 720（用於偵測「離開＝通過」）
++	int16  _chtVerifyLastId = -1;   // 已排過作答的問題 id（L5），避免同一題重複排隊
++	int    _chtVerifyKeyQueue[8];   // 待注入的合成鍵碼佇列（TAB×n + ENTER）
++	int    _chtVerifyKeyHead = 0;   // 佇列讀取位置
++	int    _chtVerifyKeyTail = 0;   // 佇列寫入位置
++	int16  chtReadVerifyLocal(int idx); // 讀 script 720 local[idx]，讀不到回 -32768
  	ResourceManager *_resMan; /**< The resource manager */
  	ScriptPatcher *_scriptPatcher; /**< The script patcher */
  	EngineState *_gamestate;
