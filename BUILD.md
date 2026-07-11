@@ -42,11 +42,17 @@ python3 tools/build_cht.py translation/lsl1-vga-full.tsv fonts_vga --size 16   #
 cp fonts/qfg1_big5.fnt game/ega/lsl_big5.fnt;   cp fonts/translation.tsv     game/ega/
 cp fonts_vga/qfg1_big5.fnt game/vga/lsl1_big5.fnt; cp fonts_vga/translation.tsv game/vga/
 
-# 標題疊圖：把設計師的「幻想空間」中文標題 PNG 烘成引擎可疊繪的 .ovl（EGA 索引點陣）
+# 標題疊圖：把設計師的「幻想空間」中文標題 PNG 烘成引擎可疊繪的 .ovl
+# EGA(AGI 640x400 hi-res)：量化到 EGA-16 索引
 python3 tools/build_title_overlay.py art/title/title-cht-ega.png game/ega/lsl_title.ovl --palette ega
-cp game/ega/lsl_title.ovl fonts/   # 併入 committed 快照供 macOS CI staging
+cp game/ega/lsl_title.ovl fonts/
+# VGA(SCI 320x200)：先縮到 320x200,再烘成內嵌調色盤(引擎 nearest-map 到當前 palette)
+docker run --rm -v "$PWD:/w" -w /w game-video convert art/title/title-cht-vga.png -resize 320x200 art/title/title-cht-vga-320.png
+python3 tools/build_title_overlay.py art/title/title-cht-vga-320.png game/vga/lsl_title.ovl --palette vga --colors 16
+cp game/vga/lsl_title.ovl fonts_vga/
 ```
-> 引擎在標題 pic 顯示時把 `lsl_title.ovl` 疊上（缺檔自動略過，中文標題不影響其他中文化）。
+> 引擎顯示標題畫面時把 `lsl_title.ovl` 疊上：EGA 在 PictureMgr 顯示標題 pic 時、VGA 在 SCI 繪 Sturgeon
+> 警告文字時觸發（缺檔自動略過，中文標題不影響其他中文化）。VGA 疊圖座標為 320x200 遊戲解析度。
 
 ## 五、執行
 
