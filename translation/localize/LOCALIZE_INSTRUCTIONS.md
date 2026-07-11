@@ -13,7 +13,7 @@ Read `docs/localization/taiwan-humor-refs.md`（梗庫、手法、尺度）。
 
 ## 統一譯名表（全批次一致，務必照用）
 - Larry → 賴瑞
-- Lost Wages → 失樂城
+- Lost Wages → 失樂園
 - Sierra → Sierra（保留英文）
 - Lefty's Bar / Lefty's → 老左酒吧（Lefty 單指人時「老左」）
 - Fawn → 芳恩　Faith → 費絲　Eve → 伊芙
