@@ -41,7 +41,12 @@ python3 tools/build_cht.py translation/lsl1-ega-full.tsv fonts     --size 16   #
 python3 tools/build_cht.py translation/lsl1-vga-full.tsv fonts_vga --size 16   # VGA
 cp fonts/qfg1_big5.fnt game/ega/lsl_big5.fnt;   cp fonts/translation.tsv     game/ega/
 cp fonts_vga/qfg1_big5.fnt game/vga/lsl1_big5.fnt; cp fonts_vga/translation.tsv game/vga/
+
+# 標題疊圖：把設計師的「幻想空間」中文標題 PNG 烘成引擎可疊繪的 .ovl（EGA 索引點陣）
+python3 tools/build_title_overlay.py art/title/title-cht-ega.png game/ega/lsl_title.ovl --palette ega
+cp game/ega/lsl_title.ovl fonts/   # 併入 committed 快照供 macOS CI staging
 ```
+> 引擎在標題 pic 顯示時把 `lsl_title.ovl` 疊上（缺檔自動略過，中文標題不影響其他中文化）。
 
 ## 五、執行
 

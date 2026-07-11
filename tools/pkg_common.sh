@@ -20,6 +20,8 @@ stage_cht_data() {
   [ -f "$base/translation.tsv" ] || { echo "!! 找不到 $base/translation.tsv(先跑 build_cht.py 或確認 checkout 含 runtime 快照)" >&2; return 1; }
   cp "$base/translation.tsv" "$out/translation.tsv"
   cp "$base/qfg1_big5.fnt"   "$out/$fnt_dst"          # build_cht 固定輸出 qfg1_big5.fnt,依版改名
+  # 標題疊圖(EGA「幻想空間」中文標題)—有才複製,引擎缺檔自動略過
+  [ -f "$base/lsl_title.ovl" ] && cp "$base/lsl_title.ovl" "$out/lsl_title.ovl"
   echo ">>    staged $(ls "$out" | wc -l) 個中文資料檔 → $out"
 }
 

@@ -11,7 +11,7 @@ index 95d4ad4082..732924cb72 100644
  
  	_text->init(_systemUI);
 diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
-index 1bb1d20232..1bb75e83f1 100644
+index 1bb1d20232..c81eb17349 100644
 --- a/engines/agi/graphics.cpp
 +++ b/engines/agi/graphics.cpp
 @@ -26,6 +26,7 @@
@@ -22,17 +22,20 @@ index 1bb1d20232..1bb75e83f1 100644
  
  #include "agi/agi.h"
  #include "agi/graphics.h"
-@@ -39,6 +40,9 @@ namespace Agi {
+@@ -39,6 +40,12 @@ namespace Agi {
  #include "agi/font.h"
  
  GfxMgr::GfxMgr(AgiBase *vm, GfxFont *font) : _vm(vm), _font(font) {
 +	_chtEnabled = false;
 +	_chtFont = nullptr;
++	_chtTitleOverlay = nullptr;
++	_chtTitleOX = _chtTitleOY = _chtTitleOW = _chtTitleOH = 0;
++	_chtTitlePic = -1;
 +
  	memset(&_paletteGfxMode, 0, sizeof(_paletteGfxMode));
  	memset(&_paletteTextMode, 0, sizeof(_paletteTextMode));
  
-@@ -151,6 +155,11 @@ void GfxMgr::initVideo() {
+@@ -151,6 +158,11 @@ void GfxMgr::initVideo() {
  		break;
  	}
  
@@ -44,7 +47,7 @@ index 1bb1d20232..1bb75e83f1 100644
  	if (_font->isFontHires() || forceHires) {
  		// Upscaling enable
  		_upscaledHires = DISPLAY_UPSCALED_640x400;
-@@ -1157,6 +1166,90 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
+@@ -1157,6 +1169,140 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
  /**
   * Draw a character to the display screen using text row and column coordinates
   */
@@ -98,6 +101,56 @@ index 1bb1d20232..1bb75e83f1 100644
 +	} else {
 +		warning("AGI-CHT: 找不到 translation.tsv");
 +	}
++
++	loadChtTitleOverlay();
++}
++
++// 載入標題疊圖 lsl_title.ovl（格式見 tools/build_title_overlay.py）。缺檔則靜默略過。
++void GfxMgr::loadChtTitleOverlay() {
++	Common::File f;
++	if (!f.open("lsl_title.ovl"))
++		return;
++	byte magic[4];
++	f.read(magic, 4);
++	if (memcmp(magic, "CHTO", 4) != 0) {
++		warning("AGI-CHT: lsl_title.ovl magic 不符，略過");
++		return;
++	}
++	f.readByte();                 // version
++	f.readByte();                 // palType（EGA=0；AGI 端只用 EGA 索引）
++	_chtTitleOX = f.readUint16BE();
++	_chtTitleOY = f.readUint16BE();
++	_chtTitleOW = f.readUint16BE();
++	_chtTitleOH = f.readUint16BE();
++	uint32 n = (uint32)_chtTitleOW * _chtTitleOH;
++	_chtTitleOverlay = (byte *)malloc(n);
++	if (!_chtTitleOverlay) { _chtTitleOW = _chtTitleOH = 0; return; }
++	f.read(_chtTitleOverlay, n);
++	f.close();
++	debug("AGI-CHT: 標題疊圖已載入 (%dx%d @ %d,%d)", _chtTitleOW, _chtTitleOH, _chtTitleOX, _chtTitleOY);
++}
++
++// 若 picNr 是標題 pic（首張顯示的 pic），把「幻想空間」中文標題疊到 display 上。
++// 只在 hi-res(640x400) 顯示模式生效；索引 0xFF 為透明。
++void GfxMgr::drawChtTitleOverlay(int16 picNr) {
++	if (!_chtEnabled || !_chtTitleOverlay)
++		return;
++	if (_chtTitlePic == -1)
++		_chtTitlePic = picNr;     // 首張 pic 視為標題
++	if (picNr != _chtTitlePic)
++		return;
++	if (_displayScreenWidth < (int)(_chtTitleOX + _chtTitleOW) ||
++	    _displayScreenHeight < (int)(_chtTitleOY + _chtTitleOH))
++		return;                   // 非 hi-res / 尺寸不符時不疊，避免越界
++	for (uint16 ry = 0; ry < _chtTitleOH; ry++) {
++		byte *src = _chtTitleOverlay + ry * _chtTitleOW;
++		byte *dst = _displayScreen + (_chtTitleOY + ry) * _displayScreenWidth + _chtTitleOX;
++		for (uint16 rx = 0; rx < _chtTitleOW; rx++) {
++			if (src[rx] != 0xFF)
++				dst[rx] = src[rx];
++		}
++	}
++	copyDisplayRectToScreen(_chtTitleOX, _chtTitleOY, _chtTitleOW, _chtTitleOH);
 +}
 +
 +// 用英文原文當 key 查中譯；查無則原樣返回
@@ -136,7 +189,7 @@ index 1bb1d20232..1bb75e83f1 100644
  	int16 x = column;
  	int16 y = row;
 diff --git a/engines/agi/graphics.h b/engines/agi/graphics.h
-index 320019fa50..c841c5f64c 100644
+index 320019fa50..397bd84392 100644
 --- a/engines/agi/graphics.h
 +++ b/engines/agi/graphics.h
 @@ -24,6 +24,13 @@
@@ -153,7 +206,7 @@ index 320019fa50..c841c5f64c 100644
  namespace Agi {
  
  #define SCRIPT_WIDTH    160
-@@ -60,6 +67,11 @@ private:
+@@ -60,6 +67,16 @@ private:
  	AgiBase *_vm;
  	GfxFont *_font;
  
@@ -162,10 +215,15 @@ index 320019fa50..c841c5f64c 100644
 +	Graphics::Big5Font *_chtFont;
 +	Common::HashMap<Common::String, Common::String> _chtTranslation;
 +
++	// 繁體中文化：標題畫面「幻想空間」中文標題疊圖（.ovl 索引點陣）
++	byte  *_chtTitleOverlay;   // 非透明=EGA 索引、0xFF=透明；nullptr 表未載入
++	uint16 _chtTitleOX, _chtTitleOY, _chtTitleOW, _chtTitleOH; // 外接框
++	int    _chtTitlePic;       // 首次 show.pic 的 pic 編號（=標題 pic）；-1 未捕捉
++
  	uint8 _paletteGfxMode[256 * 3];
  	uint8 _paletteTextMode[256 * 3];
  
-@@ -69,6 +81,13 @@ private:
+@@ -69,6 +86,15 @@ private:
  public:
  	GfxMgr(AgiBase *vm, GfxFont *font);
  
@@ -175,10 +233,32 @@ index 320019fa50..c841c5f64c 100644
 +	const char *getChtTranslation(const char *english) const;
 +	void drawBig5Character(int16 row, int16 column, uint16 big5, byte foreground, byte background);
 +	void drawBig5CharacterOnDisplay(int16 x, int16 y, uint16 big5, byte foreground, byte background);
++	void loadChtTitleOverlay();           // 載入 lsl_title.ovl（若存在）
++	void drawChtTitleOverlay(int16 picNr); // 若 picNr 為標題 pic 則疊繪中文標題
 +
  	void initVideo();
  	void deinitVideo();
  	static void initPalette(uint8 *destPalette, const uint8 *paletteData, uint colorCount = 16, uint fromBits = 6, uint toBits = 8);
+diff --git a/engines/agi/picture.cpp b/engines/agi/picture.cpp
+index 70ce126d9b..030c9762ec 100644
+--- a/engines/agi/picture.cpp
++++ b/engines/agi/picture.cpp
+@@ -814,6 +814,7 @@ void PictureMgr::showPicture(int16 x, int16 y, int16 width, int16 height) {
+ 	debugC(kDebugLevelPictures, "Show picture");
+ 
+ 	_gfx->render_Block(x, y, width, height);
++	_gfx->drawChtTitleOverlay(_resourceNr); // 繁中：標題 pic 疊「幻想空間」
+ }
+ 
+ /**
+@@ -859,6 +860,7 @@ void PictureMgr::showPictureWithTransition() {
+ 	}
+ 
+ 	_gfx->render_Block(0, 0, SCRIPT_WIDTH, SCRIPT_HEIGHT);
++	_gfx->drawChtTitleOverlay(_resourceNr); // 繁中：標題 pic 疊「幻想空間」
+ }
+ 
+ } // End of namespace Agi
 diff --git a/engines/agi/text.cpp b/engines/agi/text.cpp
 index cc02816bce..96ed33d604 100644
 --- a/engines/agi/text.cpp
