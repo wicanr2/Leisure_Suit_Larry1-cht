@@ -11,7 +11,7 @@ index 95d4ad4082..732924cb72 100644
  
  	_text->init(_systemUI);
 diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
-index 1bb1d20232..c81eb17349 100644
+index 1bb1d20232..98f06ccf81 100644
 --- a/engines/agi/graphics.cpp
 +++ b/engines/agi/graphics.cpp
 @@ -26,6 +26,7 @@
@@ -47,7 +47,7 @@ index 1bb1d20232..c81eb17349 100644
  	if (_font->isFontHires() || forceHires) {
  		// Upscaling enable
  		_upscaledHires = DISPLAY_UPSCALED_640x400;
-@@ -1157,6 +1169,140 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
+@@ -1157,6 +1169,143 @@ void GfxMgr::drawDisplayRectCGA(int16 x, int16 y, int16 width, int16 height, byt
  /**
   * Draw a character to the display screen using text row and column coordinates
   */
@@ -174,11 +174,14 @@ index 1bb1d20232..c81eb17349 100644
 +void GfxMgr::drawBig5CharacterOnDisplay(int16 x, int16 y, uint16 big5, byte foreground, byte background) {
 +	if (!_chtFont)
 +		return;
-+	// 先把 16x16 cell 填背景色（Big5Font 只畫前景 pixel，不清底）
-+	for (int16 cy = 0; cy < 16; cy++) {
-+		byte *rowPtr = _displayScreen + (y + cy) * _displayScreenWidth + x;
-+		for (int16 cx = 0; cx < 16; cx++)
-+			rowPtr[cx] = background;
++	// background 非 0 才填底（Big5Font 只畫前景 pixel）。0 = 透明，直接畫在既有畫面上
++	//（標題年齡提示疊在標題美術上；訊息框則 background=15 白底，黑字清楚無灰底）。
++	if (background != 0) {
++		for (int16 cy = 0; cy < 16; cy++) {
++			byte *rowPtr = _displayScreen + (y + cy) * _displayScreenWidth + x;
++			for (int16 cx = 0; cx < 16; cx++)
++				rowPtr[cx] = background;
++		}
 +	}
 +	byte *dest = _displayScreen + y * _displayScreenWidth + x;
 +	_chtFont->drawBig5Char(dest, big5, 16, 16, _displayScreenWidth, foreground, background, false, 1);
@@ -260,7 +263,7 @@ index 70ce126d9b..030c9762ec 100644
  
  } // End of namespace Agi
 diff --git a/engines/agi/text.cpp b/engines/agi/text.cpp
-index cc02816bce..96ed33d604 100644
+index cc02816bce..8e96793d9a 100644
 --- a/engines/agi/text.cpp
 +++ b/engines/agi/text.cpp
 @@ -338,6 +338,10 @@ Common::String rightAlign(Common::String line, va_list args) {
@@ -274,7 +277,7 @@ index cc02816bce..96ed33d604 100644
  	Common::String textString;
  	if (_vm->isLanguageRTL()) {
  		textString = textPtr;
-@@ -357,11 +361,35 @@ void TextMgr::displayText(const char *textPtr, bool disabledLook) {
+@@ -357,11 +361,37 @@ void TextMgr::displayText(const char *textPtr, bool disabledLook) {
  		if (!curCharacter)
  			break;
  
@@ -296,7 +299,9 @@ index cc02816bce..96ed33d604 100644
 +	TextPos_Struct charCurPos;
 +	charPos_Get(&charCurPos);
 +
-+	_gfx->drawBig5Character(charCurPos.row, charCurPos.column, big5, _textAttrib.combinedForeground, _textAttrib.combinedBackground);
++	// 用未經點陣字 invert 轉換的「原始意圖色」：訊息框=黑字(0)/白底(15)、標題年齡提示=白字(15)/透明(0)。
++	// 不用 combinedBackground——那含 invert 位(0x08)是給 8x8 點陣字 XOR 反白用的，Big5 直接填會變灰底。
++	_gfx->drawBig5Character(charCurPos.row, charCurPos.column, big5, _textAttrib.foreground, _textAttrib.background);
 +
 +	// 640x400 hi-res：字格寬=16px，一個 16x16 中文字佔 1 格
 +	charCurPos.column += 1;
@@ -310,7 +315,7 @@ index cc02816bce..96ed33d604 100644
  void TextMgr::displayCharacter(byte character, bool disabledLook) {
  	TextPos_Struct charCurPos;
  
-@@ -426,6 +454,9 @@ void TextMgr::printAt(int16 textNr, int16 textPos_Row, int16 textPos_Column, int
+@@ -426,6 +456,9 @@ void TextMgr::printAt(int16 textNr, int16 textPos_Row, int16 textPos_Column, int
  }
  
  bool TextMgr::messageBox(const char *textPtr) {
@@ -320,6 +325,83 @@ index cc02816bce..96ed33d604 100644
  	drawMessageBox(textPtr);
  
  	if (_vm->getFlag(VM_FLAG_OUTPUT_MODE)) {
+@@ -1179,6 +1212,28 @@ void TextMgr::stringRememberForAutoComplete(bool entered) {
+  * @param originalText  String to wrap.
+  * @param maxWidth      Length of line.
+  */
++// 繁體中文化：計算 [start, start+len) 的顯示欄寬。Big5(0x81-0xFE lead + trail)一個字佔 1 欄（16px 格），
++// 其餘每 byte 1 欄。原本 wrap 用 byte 數當寬度，Big5 每字 2 byte 會被當 2 欄 → 短句過早換行。
++static int16 chtColWidth(const char *t, int16 start, int16 len) {
++	int16 cols = 0, i = start, end = start + len;
++	while (i < end) {
++		byte c = (byte)t[i];
++		if (c >= 0x81 && c <= 0xFE && i + 1 < end) { cols++; i += 2; }
++		else { cols++; i++; }
++	}
++	return cols;
++}
++// 從 start 起累積到 maxCols 顯示欄所需的 byte 長度（不切斷 Big5 字）。
++static int16 chtBytesForCols(const char *t, int16 start, int16 len, int16 maxCols) {
++	int16 cols = 0, i = start, end = start + len;
++	while (i < end && cols < maxCols) {
++		byte c = (byte)t[i];
++		if (c >= 0x81 && c <= 0xFE && i + 1 < end) i += 2; else i++;
++		cols++;
++	}
++	return i - start;
++}
++
+ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *calculatedWidthPtr, int16 *calculatedHeightPtr) {
+ 	static char resultWrappedBuffer[2000];
+ 	int16 boxWidth = 0;
+@@ -1214,10 +1269,11 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
+ 		}
+ 		byte wordEndChar = originalText[curReadPos];
+ 
+-		// Calculate word length
++		// Calculate word length（wordLen=byte 數；wordCols=顯示欄寬，Big5 每字算 1 欄）
+ 		int16 wordLen = curReadPos - wordStartPos;
++		int16 wordCols = chtColWidth(originalText, wordStartPos, wordLen);
+ 
+-		if (wordLen >= lineWidthLeft) {
++		if (wordCols >= lineWidthLeft) {
+ 			// Not enough space left
+ 
+ 			// If first character right after the new line is a space, skip over it
+@@ -1225,13 +1281,15 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
+ 				if (originalText[wordStartPos] == ' ') {
+ 					wordStartPos++;
+ 					wordLen--;
++					wordCols = chtColWidth(originalText, wordStartPos, wordLen);
+ 				}
+ 			}
+ 
+-			if (wordLen > maxWidth) {
+-				// Word way too long, split it in half
+-				curReadPos = curReadPos - (wordLen - maxWidth);
+-				wordLen = maxWidth;
++			if (wordCols > maxWidth) {
++				// Word way too long, split it（依顯示欄寬切，不切斷 Big5 字）
++				wordLen = chtBytesForCols(originalText, wordStartPos, wordLen, maxWidth);
++				curReadPos = wordStartPos + wordLen;
++				wordCols = chtColWidth(originalText, wordStartPos, wordLen);
+ 			}
+ 
+ 			// Add new line
+@@ -1246,10 +1304,10 @@ char *TextMgr::stringWordWrap(const char *originalText, int16 maxWidth, int16 *c
+ 				break;
+ 		}
+ 
+-		// Copy current word over
++		// Copy current word over（複製 byte，寬度累計用欄寬）
+ 		memcpy(&resultWrappedBuffer[curWritePos], &originalText[wordStartPos], wordLen);
+-		lineWidth += wordLen;
+-		lineWidthLeft -= wordLen;
++		lineWidth += wordCols;
++		lineWidthLeft -= wordCols;
+ 		curWritePos += wordLen;
+ 
+ 		if (wordEndChar == 0x0A) {
 diff --git a/engines/agi/text.h b/engines/agi/text.h
 index 54d61530ed..26a5f26030 100644
 --- a/engines/agi/text.h
