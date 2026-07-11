@@ -1,8 +1,8 @@
 diff --git a/engines/agi/agi.cpp b/engines/agi/agi.cpp
-index 95d4ad4082..9c10ac3ca1 100644
+index 95d4ad4082..d6383630a6 100644
 --- a/engines/agi/agi.cpp
 +++ b/engines/agi/agi.cpp
-@@ -521,6 +521,10 @@ void AgiEngine::initialize() {
+@@ -521,6 +521,11 @@ void AgiEngine::initialize() {
  	_words = new Words(this);
  	_font = new GfxFont(this);
  	_gfx = new GfxMgr(this, _font);
@@ -10,9 +10,106 @@ index 95d4ad4082..9c10ac3ca1 100644
 +	// 也在 initVideo 前（initVideo 依 _chtEnabled 決定拉 640x400 hi-res）。
 +	// 只載 lsl_big5.fnt/translation.tsv，不依賴 _font->init()。
 +	_gfx->loadChtResources();
++	chtLoadVerifiedState();   // 繁體中文化：判定是否已通過年齡驗證(有存檔/flag)→ 之後自動略過
  	_sound = new SoundMgr(this, _mixer);
  	_picture = new PictureMgr(this, _gfx);
  	_sprites = new SpritesMgr(this, _gfx);
+diff --git a/engines/agi/agi.h b/engines/agi/agi.h
+index b3ced461ee..9e01827992 100644
+--- a/engines/agi/agi.h
++++ b/engines/agi/agi.h
+@@ -747,6 +747,14 @@ public:
+ 	SpritesMgr *_sprites;
+ 	TextMgr *_text;
+ 	InventoryMgr *_inventory;
++
++	// 繁體中文化：年齡+問答驗證「一次通過就記住」。驗證在 room 6 進行(年齡走 get.num、
++	// 問答是單鍵 a-d 由 controller 捕捉，v96=題號、v93=正解 1-4)。已驗證時引擎自動填年齡 99、
++	// 自動送正解鍵，玩家不用再答；標題/警告片頭照常顯示。
++	bool  _chtVerified = false;    // 啟動判定：flag 檔存在 或 已有存檔
++	int16 _chtLastQuizQ = -1;      // 已自動答過的最後題號(v96)，避免同題重覆送鍵
++	void  chtLoadVerifiedState();  // 啟動時判定 _chtVerified
++	void  chtMarkVerified();       // 通過驗證時寫 flag 檔
+ 	PictureMgr *_picture;
+ 	AgiLoader *_loader;
+ 	GfxMenu *_menu;
+diff --git a/engines/agi/cycle.cpp b/engines/agi/cycle.cpp
+index 81421b47a4..eedd53937d 100644
+--- a/engines/agi/cycle.cpp
++++ b/engines/agi/cycle.cpp
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include "common/config-manager.h"
++#include "common/savefile.h"
+ 
+ #include "agi/agi.h"
+ #include "agi/sprite.h"
+@@ -53,6 +54,11 @@ void AgiEngine::newRoom(int16 newRoomNr) {
+ 		newRoomNr = ConfMan.getBool("copy_protection") ? 125 : 73;
+ 	}
+ 
++	// 繁體中文化：離開驗證室(room 6)進入遊戲 = 通過年齡+問答驗證 → 寫 flag，下次開機自動略過
++	if (_gfx->chtEnabled() && !_chtVerified && getVar(VM_VAR_CURRENT_ROOM) == 6 && newRoomNr != 6 && newRoomNr != 0) {
++		chtMarkVerified();
++	}
++
+ 	ScreenObjEntry *screenObjEgo = &_game.screenObjTable[SCREENOBJECTS_EGO_ENTRY];
+ 
+ 	// Loading trigger
+@@ -157,6 +163,16 @@ void AgiEngine::resetControllers() {
+ void AgiEngine::interpretCycle() {
+ 	ScreenObjEntry *screenObjEgo = &_game.screenObjTable[SCREENOBJECTS_EGO_ENTRY];
+ 
++	// 繁體中文化：已驗證則自動答年齡問答。room 6=驗證室；v96=題號、v93=正解(1-4→a/b/c/d)。
++	// 在 runLogic 前把正解鍵塞進佇列，controller 於本 cycle 就能捕捉；用 v96 去重避免重覆送。
++	if (_chtVerified && getVar(VM_VAR_CURRENT_ROOM) == 6) {
++		int16 quizQ = getVar(96), quizAns = getVar(93);
++		if (quizQ != 0 && quizQ != _chtLastQuizQ && quizAns >= 1 && quizAns <= 4) {
++			keyEnqueue("abcd"[quizAns - 1]);
++			_chtLastQuizQ = quizQ;
++		}
++	}
++
+ 	if (!_game.playerControl)
+ 		setVar(VM_VAR_EGO_DIRECTION, screenObjEgo->direction);
+ 	else
+@@ -210,6 +226,35 @@ void AgiEngine::interpretCycle() {
+ 	//_gfx->doUpdate();
+ }
+ 
++// 繁體中文化：啟動時判定是否「已通過驗證」。條件(任一)：① 已有本遊戲存檔(驗證在開場、
++// 存檔前，有存檔必然通過過)；② 存在專用 flag 檔 <target>.chtok(首次通過時寫)。
++void AgiEngine::chtLoadVerifiedState() {
++	if (!_gfx->chtEnabled())
++		return;
++	if (!_saveFileMan->listSavefiles(_targetName + ".###").empty()) {
++		_chtVerified = true;
++		return;
++	}
++	Common::InSaveFile *in = _saveFileMan->openForLoading(_targetName + ".chtok");
++	if (in) {
++		_chtVerified = true;
++		delete in;
++	}
++}
++
++// 繁體中文化：首次通過驗證時寫 flag 檔，讓「還沒存過遊戲」也能記住、下次自動略過。
++void AgiEngine::chtMarkVerified() {
++	if (_chtVerified)
++		return;
++	_chtVerified = true;
++	Common::OutSaveFile *out = _saveFileMan->openForSaving(_targetName + ".chtok", false);
++	if (out) {
++		out->writeByte(1);
++		out->finalize();
++		delete out;
++	}
++}
++
+ // We return the current key, or 0 if no key was pressed
+ uint16 AgiEngine::processAGIEvents() {
+ 	ScreenObjEntry *screenObjEgo = &_game.screenObjTable[SCREENOBJECTS_EGO_ENTRY];
 diff --git a/engines/agi/graphics.cpp b/engines/agi/graphics.cpp
 index 1bb1d20232..dd6c5b4163 100644
 --- a/engines/agi/graphics.cpp
@@ -268,6 +365,29 @@ index 3c19773ee8..f8e2c9b201 100644
  			key = event.kbd.ascii;
  			if (event.kbd.keycode >= Common::KEYCODE_KP0 && event.kbd.keycode <= Common::KEYCODE_KP9) {
  				if (!(event.kbd.flags & Common::KBD_NUM)) {
+diff --git a/engines/agi/op_cmd.cpp b/engines/agi/op_cmd.cpp
+index 6d27452bd4..cb018272de 100644
+--- a/engines/agi/op_cmd.cpp
++++ b/engines/agi/op_cmd.cpp
+@@ -2083,10 +2083,15 @@ void cmdGetNum(AgiGame *state, AgiEngine *vm, uint8 *parameter) {
+ 
+ 	textMgr->inputEditOff();
+ 
+-	vm->cycleInnerLoopActive(CYCLE_INNERLOOP_GETNUMBER);
++	// 繁體中文化：已驗證 + 在驗證室(room 6) → 年齡自動填 99，跳過輸入等待
++	if (vm->_chtVerified && vm->getVar(VM_VAR_CURRENT_ROOM) == 6) {
++		textMgr->stringSet("99");
++	} else {
++		vm->cycleInnerLoopActive(CYCLE_INNERLOOP_GETNUMBER);
+ 
+-	textMgr->stringSet("");
+-	textMgr->stringEdit(3);
++		textMgr->stringSet("");
++		textMgr->stringEdit(3);
++	}
+ 
+ 	textMgr->promptRedraw();
+ 
 diff --git a/engines/agi/picture.cpp b/engines/agi/picture.cpp
 index 70ce126d9b..030c9762ec 100644
 --- a/engines/agi/picture.cpp
