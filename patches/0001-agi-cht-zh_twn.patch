@@ -289,10 +289,10 @@ index 70ce126d9b..030c9762ec 100644
  
  } // End of namespace Agi
 diff --git a/engines/agi/systemui.cpp b/engines/agi/systemui.cpp
-index 40cd61af33..9002b6b7bd 100644
+index 40cd61af33..2a8a2612d8 100644
 --- a/engines/agi/systemui.cpp
 +++ b/engines/agi/systemui.cpp
-@@ -145,6 +145,26 @@ SystemUI::SystemUI(AgiEngine *vm, GfxMgr *gfx, TextMgr *text) {
+@@ -145,6 +145,30 @@ SystemUI::SystemUI(AgiEngine *vm, GfxMgr *gfx, TextMgr *text) {
  		break;
  	}
  
@@ -300,6 +300,10 @@ index 40cd61af33..9002b6b7bd 100644
 +	// 不是 ZH_TWN，不能用 case 攔）。改用 _gfx->chtEnabled() 覆蓋系統 UI（道具欄/暫停/存讀檔）
 +	// 為 Big5。狀態列 Score/Sound 保留英文（非 messageBox 路徑，Big5 渲染風險高）。字皆在 EGA 字庫。
 +	if (_gfx->chtEnabled()) {
++		// 狀態列：走 displayText → 支援 Big5；%v3/%v7 由 stringPrintf 代換成分數。col 1 起 / sound 於 col 30，中文較短不會撞。
++		_textStatusScore = "\xB1\x6F\xA4\xC0\xA1\x47%v3 / %v7";
++		_textStatusSoundOn = "\xC1\x6E\xAD\xB5\xA1\x47\xB6\x7D";
++		_textStatusSoundOff = "\xC1\x6E\xAD\xB5\xA1\x47\xC3\xF6";
 +		_textPause = "  \xB9\x43\xC0\xB8\xBC\xC8\xB0\xB1\xA1\x43\n\xAB\xF6 Enter \xC4\x7E\xC4\xF2\xA1\x43";
 +		_textRestart = "\xAB\xF6 ENTER \xAD\xAB\xB7\x73\xB6\x7D\xA9\x6C\xB9\x43\xC0\xB8\xA1\x43\n\n\xAB\xF6 ESC \xC4\x7E\xC4\xF2\xA5\xD8\xAB\x65\xAA\xBA\xB9\x43\xC0\xB8\xA1\x43";
 +		_textQuit = "\xAB\xF6 ENTER \xC2\xF7\xB6\x7D\xA1\x43\n\xAB\xF6 ESC \xC4\x7E\xC4\xF2\xB9\x43\xAA\xB1\xA1\x43";
