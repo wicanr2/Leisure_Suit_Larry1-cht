@@ -67,3 +67,29 @@
 3. **headless 驗證要點**：dummy video driver 下 AGI engine 不跑（要 Xvfb）；輸出要 `stdbuf -oL -eL` 行緩衝寫檔（timeout kill 會吞掉未 flush 的 log）；`--auto-detect` 只會停在 launcher，要先 `--add` 再用 target 名 `lsl1` 啟動。
 
 4. **抽字**：`tools/extract_agi.py` 已能 100% 乾淨解出 1850 則訊息（LOGIC 訊息區整塊連續 XOR "Avis Durgan"，pointer table 不加密）。key 用英文原文（含尾隨空白，如 `How old are you?  ` 有 2 個尾隨空白）。
+
+## 7. 完整在地化收尾：非-LOGIC 文字 + 系統 UI/狀態列 + F8（2026-07-11）
+
+LOGIC 對白 100% 譯完 ≠ 完整。玩家還會看到選單、道具欄、系統 UI、狀態列——這些不在 LOGIC 裡，是最容易漏的殘留英文。
+
+### 7.1 AGI 文字的三個來源（少抽一個就露英文）
+- **LOGIC 訊息**：`extract_agi.py`（見 §6.4）。對白主體。
+- **OBJECT 道具名**（20 項，Wallet/Rose/Prophylactic…）：**OBJECT 檔也是 `Avis Durgan` XOR 加密**（同 WORDS.TOK）。解密後抽 null 結尾字串。顯示走 `InventoryMgr` → `_text->displayText(name)` → **會呼叫 `getChtTranslation`**，所以**加進 `translation/lsl1-ega-full.tsv` 就會翻，不用改引擎**。
+- **SystemUI 引擎硬寫字串**：道具欄標題「You are carrying:」、暫停、存讀檔提示、狀態列 Score/Sound。在 `engines/agi/systemui.cpp` 建構子按語言 `switch` 寫死（有 RU/HE/FR 分支），**不走 content-key**，得自己加分支。
+
+### 7.2 [HARD] systemUI 中文分支要判 `chtEnabled` 不判 `language`
+- EGA 用「字型檔存在」啟用中文（§6.1），`getLanguage()` **不是** `ZH_TWN`，故 systemui 的 `switch(getLanguage())` 那個 `case ZH_TWN` 永遠不命中。
+- 正解：switch 之後補 `if (_gfx->chtEnabled()) { _textInventoryYouAreCarrying = "…"; … }`（Big5 用 `\xNN` escape，mirror RU/HE/FR 寫法）。
+
+### 7.3 [HARD] init 順序：`loadChtResources()` 要移到 `new SystemUI` 之前
+- `agi.cpp` 原順序：`new SystemUI(...)` → `loadChtResources()`（設 `_chtEnabled=true`）。→ SystemUI 建構子讀 `chtEnabled` **還是 false**，中文分支不生效（但道具名正常，因為它是顯示時即時查表）。
+- 正解：把 `_gfx->loadChtResources()` 前移到 `new SystemUI` 之前。它只開 `lsl_big5.fnt`/`translation.tsv`、建自己的 Big5Font，**不依賴 `_font->init()`**，可安全前移（仍在 `initVideo` 前）。
+
+### 7.4 狀態列 Score/Sound 中文化（小改動、大提升）
+- `TextMgr::statusDraw` 用的也是 `displayText` → **本就支援 Big5**。
+- 設 `_textStatusScore = "得分:%v3 / %v7"`、`_textStatusSoundOn/Off`。**`%v3/%v7` 是 AGI 變數代換（分數），`stringPrintf` 會填，務必保留。** 中文較短，score@col1 / sound@col30 不撞。實機：`docs/scene-ega-status-cht.png`（「得分：0 / 222」「聲音：開」）。
+
+### 7.5 F8 中英對照即時切換
+- 獨立旗標 `_chtLangOn`（**別重用 `_chtEnabled`**，後者還牽動 hi-res 與 Big5 gate）。`getChtTranslation` 開頭 `if (!_chtEnabled || !_chtLangOn) return english;`。
+- F8 在 `AgiEngine::processScummVMEvents` 的 `EVENT_KEYDOWN` 攔截並消費（不 enqueue 給遊戲），僅 `chtEnabled` 時攔。
+- **當前訊息框原地即時重繪**：`TextMgr::messageBox` 入口快取英文原文+wanted 排版；F8 呼叫 `chtToggleRedraw()` → `drawMessageBox(getChtTranslation(原文))`。`drawMessageBox` 內部先 `closeWindow` 再畫，**可重入**。（SCI 端採「下一則生效」語意。）
