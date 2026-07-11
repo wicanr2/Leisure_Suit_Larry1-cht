@@ -18,11 +18,11 @@ FR=/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc
 # ===== 每版獨立 theme =====
 if [ "$ED" = "ega" ]; then
   BG_D='#0a0a2a'; BG_L='#1a0a3a'; ACCENT='#00e0e0'; ACC2='#ff3ea5'; TEXT='#f2f2ff'
-  TITLE_ZH='幻想空間'; TITLE_EN='Leisure Suit Larry (1987 EGA)'; SUB='霓虹賭城的中年魯蛇 · 全程繁體中文'
+  TITLE_ZH='幻想空間'; TITLE_EN='Leisure Suit Larry (1987 EGA)'; SUB='霓虹賭城的中年魯蛇 · 台式在地化全程繁中'
   MUSIC=/music/ega.wav
 else
   BG_D='#1a1005'; BG_L='#3a2410'; ACCENT='#ffb020'; ACC2='#e05010'; TEXT='#fff4e0'
-  TITLE_ZH='幻想空間'; TITLE_EN='Leisure Suit Larry (1991 VGA)'; SUB='256 色重製版 · 全程繁體中文'
+  TITLE_ZH='幻想空間'; TITLE_EN='Leisure Suit Larry (1991 VGA)'; SUB='256 色重製版 · 台式在地化全程繁中'
   MUSIC=/music/vga.wav
 fi
 
@@ -70,30 +70,36 @@ fi
 n=1
 for f in $(ls /shots | sort); do
   case "$ED-$f" in
+    *localized*|*loc*) CAP='遊戲內實機：台式在地化旁白' ;;
     *title*)   CAP='那個穿廉價白西裝、想把妹的中年魯蛇' ;;
     *age*)     CAP='先答對成人問答，才准進門' ;;
     *warning*|*sturgeon*) CAP='「本遊戲含成人劇情，兒童不宜」——這次看得懂了' ;;
     *reject*)  CAP='太年輕？回家找個大人吧' ;;
+    *bar*|*interior*) CAP='老左酒吧——你見過最骯髒下流的酒吧' ;;
     *)         CAP='全程繁體中文化' ;;
   esac
   cp "/shots/$f" "$TMP/shot_$f"
   slide "$TMP/sl$n.png" "$f" "$CAP"; add "$TMP/sl$n.png" 5; n=$((n+1))
 done
-# 金句卡
+# ===== 台式在地化金句（招牌賣點）=====
+card "$TMP/loc.png" '台式在地化' '不只翻譯，是重寫成台灣人一看就笑' '色在雙關 · 笑在自嘲 · 賤在旁白'; add "$TMP/loc.png" 4
 if [ "$ED" = "ega" ]; then
-  dcard "$TMP/d1.png" '你的豔裝套裝很時髦，但口袋空空。' '— 檢視你的行頭'; add "$TMP/d1.png" 4
-  dcard "$TMP/d2.png" '「不客氣。」' '— 賴瑞的名言'; add "$TMP/d2.png" 3
+  dcard "$TMP/d1.png" '這身騷包白西裝是你全身最值錢的行頭——偏偏口袋比臉還乾淨。' '— 檢視賴瑞的行頭 · 自嘲魯蛇'; add "$TMP/d1.png" 5
+  dcard "$TMP/d2.png" '驚傳！中年男夜闖暗巷慘遭「關切」，當場領便當。' '— 死法旁白 · 報紙社會版標題腔'; add "$TMP/d2.png" 5
+  dcard "$TMP/d3.png" '都領便當了還在碎念？歹勢啦，坐乎穩，好好享受這趟單程之旅。' '— 死後吐槽 · 台語提味'; add "$TMP/d3.png" 5
 else
-  dcard "$TMP/d1.png" '而且你的口氣臭死人！' '— 你聞聞自己'; add "$TMP/d1.png" 4
-  dcard "$TMP/d2.png" '…哎呀，玩錯遊戲了。' '— Sierra 式吐槽'; add "$TMP/d2.png" 3
+  dcard "$TMP/d1.png" '齁！你這一身味，是路邊那根被狗做記號做十年的消防栓吧？' '— 酒客嗆聲'; add "$TMP/d1.png" 5
+  dcard "$TMP/d2.png" '而且你那口氣——是把整攤臭豆腐吞下去了是不是啦！' '— 你聞聞自己'; add "$TMP/d2.png" 5
+  dcard "$TMP/d3.png" '看到雜誌封面那對「哈密瓜」，蘋果頓時自卑了起來。' '— 諧音雙關 · 點到為止'; add "$TMP/d3.png" 5
 fi
 card "$TMP/99.png" "$TITLE_ZH" "$TITLE_EN" "繁體中文化 · ScummVM patch · github.com/wicanr2/Leisure_Suit_Larry1-cht"; add "$TMP/99.png" 6
 
 # ===== concat + 配樂 =====
 ffmpeg -y -loglevel error -f concat -safe 0 -i "$LIST" -threads 2 -c:v libx264 -preset veryfast -pix_fmt yuv420p "$TMP/silent.mp4"
 DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$TMP/silent.mp4"); FO=$(awk "BEGIN{print $DUR-3}")
+# 配樂循環鋪滿全片（影片可能比單段配樂長，aloop 無限循環後 atrim 到影片長度，避免 -shortest 砍掉結尾卡）
 ffmpeg -y -loglevel error -i "$TMP/silent.mp4" -i "$MUSIC" \
-  -filter_complex "[1:a]atrim=0:$DUR,afade=t=in:st=0:d=2,afade=t=out:st=$FO:d=3[a]" \
-  -map 0:v -map "[a]" -threads 2 -c:v libx264 -preset veryfast -c:a aac -b:a 192k -shortest -movflags +faststart \
+  -filter_complex "[1:a]aloop=loop=-1:size=2000000000,atrim=0:$DUR,afade=t=in:st=0:d=2,afade=t=out:st=$FO:d=3,asetpts=N/SR/TB[a]" \
+  -map 0:v -map "[a]" -threads 2 -c:v libx264 -preset veryfast -c:a aac -b:a 192k -movflags +faststart \
   "/out/幻想空間-${ED}-promo.mp4"
 echo "完成: /out/幻想空間-${ED}-promo.mp4 ($DUR s)"
