@@ -30,4 +30,9 @@
 
 - [HARD] **不用 brew sdl2**（2026 起是 sdl2-compat shim → dylibbundler 抓不到 → 玩家端黑畫面）；CI 自編 pinned SDL2 2.30.9 源碼，universal 用「每弧各編 + lipo」。
 - 已適配：configure 加 `--enable-engine=agi --enable-engine=sci`、引擎檢查含 AGI、命名 LSL1-CHT。
-- **待首次 CI 執行微調**：`tools/package_macos_data.sh` + `pkg_common.sh` 的 `stage_cht_data` 仍是 qfg-1 路徑（`qfg1_big5.fnt` / VGA view-pic patch），需改為 LSL1 的 `lsl_big5.fnt`(EGA)/`lsl1_big5.fnt`(VGA) 與 `translation/lsl1-*-full.tsv`。ScummVM.app universal build 部分已正確。
+- 中文資料注入（`pkg_common.sh` `stage_cht_data` + `package_macos_data.sh`）已改為 LSL1：
+  - 來源用版控 runtime 快照 `fonts/`(EGA)、`fonts_vga/`(VGA)，CI checkout 直接可用（`game/` 為 gitignore 拿不到）。
+  - 字型改名成引擎實際 open 的檔名：EGA `lsl_big5.fnt`、VGA `lsl1_big5.fnt`；LSL1 無 view/pic 美術 patch。
+  - README 執行指令按版正確：EGA `--render-mode=ega lsl1`（不帶 `--language`，AGI 非英文會無法啟動）、VGA `--language=tw lsl1sci`。
+  - **已驗證**：staging 來源 `fonts/`,`fonts_vga/` 與已出貨 Linux/Windows 的 `game/ega`,`game/vga` 中文資料位元一致（md5 相符）→ 三平台不 drift。
+- **待首次 CI 實跑**：SDL2 release tarball 網址 / ScummVM 版本 drift 可能需微調（見 workflow 註解），資料注入邏輯已本機驗證。

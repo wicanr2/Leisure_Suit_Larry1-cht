@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 把 macOS CI(.github/workflows/build-macos.yml)產出的「空引擎」ScummVM.app,
-# 注入中文資料(translation.tsv + qfg1_big5.fnt + VGA view/pic patch)+ README,
+# 注入 LSL1 中文資料(translation.tsv + Big5 字型:EGA lsl_big5.fnt / VGA lsl1_big5.fnt)+ README,
 # 重新打包成可交付檔。在 CI runner 內跑(bash 內建即可,不需 docker/python)。
 #
 # 用法:tools/package_macos_data.sh <engine.tar.gz 或 .app 路徑> <vga|ega> <輸出目錄>
@@ -39,7 +39,7 @@ if command -v codesign >/dev/null 2>&1; then
 fi
 
 mkdir -p "$OUT"
-LABEL="QFG1-CHT-$(echo "$EDITION" | tr '[:lower:]' '[:upper:]')-macos-universal"
+LABEL="LSL1-CHT-$(echo "$EDITION" | tr '[:lower:]' '[:upper:]')-macos-universal"
 tar czf "$OUT/${LABEL}.tar.gz" -C "$(dirname "$APP")" "$(basename "$APP")"
 echo ">> -> $OUT/${LABEL}.tar.gz"
 

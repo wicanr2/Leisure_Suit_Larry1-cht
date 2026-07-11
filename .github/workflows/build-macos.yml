@@ -17,8 +17,8 @@ name: build-macos
 # 不需要——見 BUILD.md,故不特地為它們自編/brew,保持依賴面最小)。
 #
 # 首次執行可能需依 runner 環境微調(ScummVM 版本 drift、SDL release tarball 網址等)。
-# 中文資料本身(translation.tsv/lsl1_big5.fnt/view-pic patch)不在此 workflow 產生,
-# 由 tools/package_macos_data.sh 在 build 完成後注入。
+# 中文資料本身(translation.tsv + Big5 字型;LSL1 為內容比對替換,無 view/pic 美術 patch)
+# 不在此 workflow 產生,由 tools/package_macos_data.sh 在 build 完成後從版控快照注入。
 
 on:
   workflow_dispatch:
@@ -187,14 +187,14 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qfg1-cht-macos-vga
+          name: lsl1-cht-macos-vga
           path: |
             dist-macos/out-vga/*
             dist-macos/LSL1-CHT-engine-macos-universal.dmg
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qfg1-cht-macos-ega
+          name: lsl1-cht-macos-ega
           path: |
             dist-macos/out-ega/*
             dist-macos/LSL1-CHT-engine-macos-universal.dmg
