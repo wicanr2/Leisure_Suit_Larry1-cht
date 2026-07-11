@@ -1,93 +1,20 @@
-diff --git a/engines/sci/graphics/cache.cpp b/engines/sci/graphics/cache.cpp
-index fda7797e85..b012b33170 100644
---- a/engines/sci/graphics/cache.cpp
-+++ b/engines/sci/graphics/cache.cpp
-@@ -30,6 +30,7 @@
- #include "sci/graphics/scifont.h"
- #include "sci/graphics/fontsjis.h"
- #include "sci/graphics/fontkorean.h"
-+#include "sci/graphics/fontchinese.h"
- #include "sci/graphics/view.h"
- 
- namespace Sci {
-@@ -72,6 +73,10 @@ GfxFont *GfxCache::getFont(GuiResourceId fontId) {
- 		// Create special SJIS font in japanese games, when font 900 is selected
- 		else if ((fontId == 900) && (g_sci->getLanguage() == Common::JA_JPN))
- 			_cachedFonts[fontId] = new GfxFontSjis(_screen, fontId);
-+		// Traditional Chinese (Big5) fan translation: wrap every font so ASCII
-+		// stays on the original SCI glyphs and Big5 double-byte renders via Big5Font.
-+		else if (g_sci->getLanguage() == Common::ZH_TWN)
-+			_cachedFonts[fontId] = new GfxFontChinese(_resMan, _screen, fontId);
- 		else
- 			_cachedFonts[fontId] = new GfxFontFromResource(_resMan, _screen, fontId);
- 	}
-diff --git a/engines/sci/graphics/paint16.cpp b/engines/sci/graphics/paint16.cpp
-index 2e901e8d9e..c082e0746e 100644
---- a/engines/sci/graphics/paint16.cpp
-+++ b/engines/sci/graphics/paint16.cpp
-@@ -19,6 +19,8 @@
-  *
-  */
- 
-+#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
-+#include "common/file.h"
- #include "sci/sci.h"
- #include "sci/engine/features.h"
- #include "sci/engine/state.h"
-@@ -88,6 +90,8 @@ void GfxPaint16::debugSetEGAdrawingVisualize(bool state) {
- }
- 
- void GfxPaint16::drawPicture(GuiResourceId pictureId, bool mirroredFlag, bool addToFlag, GuiResourceId paletteId) {
-+	if (getenv("SCI_LOG_GFX"))
-+		warning("SCI_LOG_GFX drawPicture pic=%d", pictureId);
- 	// Set up custom per-picture palette mod
- 	doCustomPicPalette(_screen, pictureId);
- 
-@@ -106,6 +110,27 @@ void GfxPaint16::drawPicture(GuiResourceId pictureId, bool mirroredFlag, bool ad
- 
- 	// Reset custom per-picture palette mod
- 	_screen->setCurPaletteMapValue(0);
-+
-+	// CHT tooling: dump each drawn pic (display buffer + palette) as PPM, to identify
-+	// which resource holds baked-art UI labels. Triggered by SCI_DUMP_PIC=<dir>.
-+	if (const char *dir = getenv("SCI_DUMP_PIC")) {
-+		const int w = _screen->getDisplayWidth(), h = _screen->getDisplayHeight();
-+		const byte *buf = _screen->getDisplayBuffer();
-+		const Palette &pal = _palette->_sysPalette;
-+		Common::String fn = Common::String::format("%s/pic_%d.ppm", dir, pictureId);
-+		Common::DumpFile out;
-+		if (out.open(Common::Path(fn))) {
-+			Common::String hdr = Common::String::format("P6\n%d %d\n255\n", w, h);
-+			out.write(hdr.c_str(), hdr.size());
-+			for (int i = 0; i < w * h; i++) {
-+				const Color &c = pal.colors[buf[i]];
-+				byte rgb[3] = { c.r, c.g, c.b };
-+				out.write(rgb, 3);
-+			}
-+			out.finalize();
-+			out.close();
-+		}
-+	}
- }
- 
- // This one is the only one that updates screen!
-diff --git a/engines/sci/graphics/screen.h b/engines/sci/graphics/screen.h
-index eaed025a3c..a18876bbf5 100644
---- a/engines/sci/graphics/screen.h
-+++ b/engines/sci/graphics/screen.h
-@@ -78,6 +78,7 @@ public:
- 	uint16 getScriptHeight() { return _scriptHeight; }
- 	uint16 getDisplayWidth() { return _displayWidth; }
- 	uint16 getDisplayHeight() { return _displayHeight; }
-+	const byte *getDisplayBuffer() { return _displayScreen; } // CHT tooling: pic dump
- 	byte getColorWhite() { return _colorWhite; }
- 	byte getColorDefaultVectorData() { return _colorDefaultVectorData; }
- 
 diff --git a/engines/sci/graphics/text16.cpp b/engines/sci/graphics/text16.cpp
-index 9e5647f3d6..077e34954c 100644
+index 9e5647f3d6..ebfa29b014 100644
 --- a/engines/sci/graphics/text16.cpp
 +++ b/engines/sci/graphics/text16.cpp
-@@ -442,6 +442,14 @@ void GfxText16::ShowString(const Common::String &str, GuiResourceId orgFontId, i
+@@ -210,6 +210,11 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId
+ 	if (!_font)
+ 		return 0;
+ 
++	// 繁體中文換行：中文無空格，會一路塞到 maxWidth 使末字頂到訊息框邊框被裁。
++	// 留一點安全邊距讓每行末的 16px 中文字不觸邊（英文靠空格斷行天生留邊，不受影響）。
++	if (g_sci->getLanguage() == Common::ZH_TWN && maxWidth > 8)
++		maxWidth -= 6;
++
+ 	for (;;) {
+ 		curChar = (*(const byte *)textPtr);
+ 		if (_font->isDoubleByte(curChar)) {
+@@ -442,6 +447,14 @@ void GfxText16::ShowString(const Common::String &str, GuiResourceId orgFontId, i
  #endif
  
  void GfxText16::DrawString(const Common::String &str, GuiResourceId orgFontId, int16 orgPenColor) {
@@ -102,7 +29,7 @@ index 9e5647f3d6..077e34954c 100644
  	Draw(str.c_str(), 0, str.size(), orgFontId, orgPenColor);
  }
  
-@@ -569,6 +577,15 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
+@@ -569,6 +582,15 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
  	int16 textWidth, maxTextWidth, textHeight;
  	int16 offset = 0;
  	int16 hline = 0;
@@ -118,7 +45,7 @@ index 9e5647f3d6..077e34954c 100644
  	GuiResourceId previousFontId = GetFontId();
  	int16 previousPenColor = _ports->_curPort->penClr;
  	bool doubleByteMode = false;
-@@ -683,10 +700,18 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
+@@ -683,10 +705,18 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
  	_ports->penColor(previousPenColor);
  }
  
@@ -138,7 +65,7 @@ index 9e5647f3d6..077e34954c 100644
  	Common::String text;
  	if (!g_sci->isLanguageRTL())
  		text = textOrig;
-@@ -700,11 +725,19 @@ void GfxText16::DrawString(const Common::String &textOrig) {
+@@ -700,11 +730,19 @@ void GfxText16::DrawString(const Common::String &textOrig) {
  
  // we need to have a separate status drawing code
  //  In KQ4 the IV char is actually 0xA, which would otherwise get considered as linebreak and not printed
@@ -159,282 +86,3 @@ index 9e5647f3d6..077e34954c 100644
  	Common::String str;
  	if (!g_sci->isLanguageRTL())
  		str = strOrig;
-diff --git a/engines/sci/graphics/view.cpp b/engines/sci/graphics/view.cpp
-index 3bc1bc7cbe..58d346d753 100644
---- a/engines/sci/graphics/view.cpp
-+++ b/engines/sci/graphics/view.cpp
-@@ -19,6 +19,8 @@
-  *
-  */
- 
-+#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
-+#include "common/file.h"
- #include "sci/sci.h"
- #include "sci/engine/state.h"
- #include "sci/graphics/drivers/gfxdriver.h"
-@@ -791,6 +793,32 @@ byte GfxView::getMappedColor(byte color, uint16 scaleSignal, const Palette *pale
- 	return outputColor;
- }
- 
-+void GfxView::dumpCelsToDir(const char *dir) {
-+	const Palette *palette = _embeddedPal ? &_viewPalette : &_palette->_sysPalette;
-+	for (int16 loopNo = 0; loopNo < (int16)getLoopCount(); loopNo++) {
-+		for (int16 celNo = 0; celNo < (int16)getCelCount(loopNo); celNo++) {
-+			const CelInfo *celInfo = getCelInfo(loopNo, celNo);
-+			const SciSpan<const byte> &bitmap = getBitmap(loopNo, celNo);
-+			const int16 w = celInfo->width, h = celInfo->height;
-+			if (w <= 0 || h <= 0)
-+				continue;
-+			Common::String fn = Common::String::format("%s/view_%d_%d_%d.ppm", dir, _resourceId, loopNo, celNo);
-+			Common::DumpFile out;
-+			if (!out.open(Common::Path(fn)))
-+				continue;
-+			Common::String hdr = Common::String::format("P6\n%d %d\n255\n", w, h);
-+			out.write(hdr.c_str(), hdr.size());
-+			for (int i = 0; i < w * h; i++) {
-+				const Color &c = palette->colors[bitmap[i]];
-+				byte rgb[3] = { c.r, c.g, c.b };
-+				out.write(rgb, 3);
-+			}
-+			out.finalize();
-+			out.close();
-+		}
-+	}
-+}
-+
- void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const Common::Rect &clipRectTranslated,
- 			int16 loopNo, int16 celNo, byte priority, uint16 EGAmappingNr, bool upscaledHires, uint16 scaleSignal) {
- 	const Palette *palette = _embeddedPal ? &_viewPalette : &_palette->_sysPalette;
-@@ -799,6 +827,25 @@ void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const
- 	const int16 celHeight = celInfo->height;
- 	const int16 celWidth = celInfo->width;
- 	const byte clearKey = celInfo->clearKey;
-+
-+	// CHT tooling: identify/extract baked-art view cels.
-+	if (getenv("SCI_LOG_GFX"))
-+		warning("SCI_LOG_GFX view=%d loop=%d cel=%d %dx%d @(%d,%d)", _resourceId, loopNo, celNo, celWidth, celHeight, rect.left, rect.top);
-+	if (const char *vdir = getenv("SCI_DUMP_VIEW")) {
-+		Common::String fn = Common::String::format("%s/view_%d_%d_%d.ppm", vdir, _resourceId, loopNo, celNo);
-+		Common::DumpFile vout;
-+		if (vout.open(Common::Path(fn))) {
-+			Common::String hdr = Common::String::format("P6\n%d %d\n255\n", celWidth, celHeight);
-+			vout.write(hdr.c_str(), hdr.size());
-+			for (int i = 0; i < celWidth * celHeight; i++) {
-+				const Color &c = palette->colors[bitmap[i]];
-+				byte rgb[3] = { c.r, c.g, c.b };
-+				vout.write(rgb, 3);
-+			}
-+			vout.finalize();
-+			vout.close();
-+		}
-+	}
- 	const byte drawMask = priority > 15 ? GFX_SCREEN_MASK_VISUAL : GFX_SCREEN_MASK_VISUAL|GFX_SCREEN_MASK_PRIORITY;
- 
- 	if (_embeddedPal)
-diff --git a/engines/sci/graphics/view.h b/engines/sci/graphics/view.h
-index 64f20a1810..797f9b5133 100644
---- a/engines/sci/graphics/view.h
-+++ b/engines/sci/graphics/view.h
-@@ -75,6 +75,9 @@ public:
- 	uint16 getCelCount(int16 loopNo) const;
- 	Palette *getPalette();
- 
-+	// CHT tooling: dump every cel of this view as PPM (identify baked-art labels).
-+	void dumpCelsToDir(const char *dir);
-+
- 	bool isScaleable();
- 
- 	void adjustToUpscaledCoordinates(int16 &y, int16 &x);
-diff --git a/engines/sci/module.mk b/engines/sci/module.mk
-index 94d96a6e38..b4c689eb87 100644
---- a/engines/sci/module.mk
-+++ b/engines/sci/module.mk
-@@ -48,6 +48,7 @@ MODULE_OBJS := \
- 	graphics/controls16.o \
- 	graphics/coordadjuster.o \
- 	graphics/cursor.o \
-+	graphics/fontchinese.o \
- 	graphics/fontkorean.o \
- 	graphics/fontsjis.o \
- 	graphics/macfont.o \
-diff --git a/engines/sci/sci.cpp b/engines/sci/sci.cpp
-index b4d28b797c..2921ed6349 100644
---- a/engines/sci/sci.cpp
-+++ b/engines/sci/sci.cpp
-@@ -19,6 +19,9 @@
-  *
-  */
- 
-+// CHT tooling hook (SCI_DUMP_RES) needs getenv; allow it for this file only.
-+#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
-+
- #include "common/system.h"
- #include "common/config-manager.h"
- #include "common/debug-channels.h"
-@@ -50,6 +53,7 @@
- #include "sci/sound/soundcmd.h"
- #include "sci/graphics/animate.h"
- #include "sci/graphics/cache.h"
-+#include "sci/graphics/view.h"
- #include "sci/graphics/compare.h"
- #include "sci/graphics/controls16.h"
- #include "sci/graphics/coordadjuster.h"
-@@ -289,6 +293,34 @@ Common::Error SciEngine::run() {
- 	}
- */
- 
-+	// CHT tooling: dump decompressed text/message/script resources as patch files
-+	// (uses ScummVM's own SCI decompressor). Triggered by SCI_DUMP_RES=<dir>; quits after.
-+	if (const char *dumpDir = getenv("SCI_DUMP_RES")) {
-+		const ResourceType dumpTypes[] = { kResourceTypeText, kResourceTypeMessage, kResourceTypeFont, kResourceTypeScript, kResourceTypeHeap, kResourceTypeView, kResourceTypePic };
-+		for (int ti = 0; ti < 7; ++ti) {
-+			Common::List<ResourceId> list = _resMan->listResources(dumpTypes[ti], -1);
-+			for (Common::List<ResourceId>::iterator it = list.begin(); it != list.end(); ++it) {
-+				Resource *r = _resMan->findResource(*it, 0);
-+				if (!r)
-+					continue;
-+				Common::String fn = Common::String::format("%s/%s.%03d", dumpDir,
-+					getResourceTypeName(dumpTypes[ti]), it->getNumber());
-+				Common::DumpFile out;
-+				if (out.open(Common::Path(fn))) {
-+					r->writeToStream(&out);
-+					out.finalize();
-+					out.close();
-+				}
-+			}
-+		}
-+		warning("SCI_DUMP_RES: dumped text/message/font resources to %s", dumpDir);
-+		return Common::kNoError;
-+	}
-+
-+	// Traditional Chinese fan translation: load the content-keyed translation table.
-+	if (getLanguage() == Common::ZH_TWN)
-+		loadChtTranslation();
-+
- 	// Add the after market patches for the specified game, if they exist
- 	_resMan->addNewGMPatch(_gameId);
- 	_resMan->addNewD110Patch(_gameId);
-@@ -585,6 +617,19 @@ void SciEngine::initGraphics() {
- 
- 	_gfxCache = new GfxCache(_resMan, _gfxScreen, _gfxPalette16);
- 
-+	// CHT tooling: dump every VIEW resource's cels as PPM (deterministic, no navigation),
-+	// to find baked-art UI labels. Triggered by SCI_DUMP_ALLVIEWS=<dir>; quits after.
-+	if (const char *vdir = getenv("SCI_DUMP_ALLVIEWS")) {
-+		Common::List<ResourceId> views = _resMan->listResources(kResourceTypeView, -1);
-+		for (Common::List<ResourceId>::iterator it = views.begin(); it != views.end(); ++it) {
-+			GfxView *v = new GfxView(_resMan, _gfxScreen, _gfxPalette16, it->getNumber());
-+			v->dumpCelsToDir(vdir);
-+			delete v;
-+		}
-+		warning("SCI_DUMP_ALLVIEWS: dumped all view cels to %s", vdir);
-+		return; // dump done; files flushed. initGraphics is void, so just return.
-+	}
-+
- #ifdef ENABLE_SCI32
- 	if (getSciVersion() >= SCI_VERSION_2) {
- 		// SCI32 graphic objects creation
-@@ -831,7 +876,66 @@ const char *SciEngine::getGameIdStr() const {
- 	return _gameDescription->gameId;
- }
- 
-+const char *SciEngine::getChtTranslation(const char *original) const {
-+	if (_chtTranslation.empty() || !original)
-+		return nullptr;
-+	Common::HashMap<Common::String, Common::String>::const_iterator it = _chtTranslation.find(original);
-+	if (it == _chtTranslation.end())
-+		return nullptr;
-+	return it->_value.c_str();
-+}
-+
-+static Common::String unescapeCht(const Common::String &in) {
-+	Common::String out;
-+	for (uint i = 0; i < in.size(); ++i) {
-+		if (in[i] == '\\' && i + 1 < in.size()) {
-+			char n = in[i + 1];
-+			if (n == 'n') { out += '\n'; ++i; continue; }
-+			if (n == 't') { out += '\t'; ++i; continue; }
-+			if (n == '\\') { out += '\\'; ++i; continue; }
-+		}
-+		out += in[i];
-+	}
-+	return out;
-+}
-+
-+void SciEngine::loadChtTranslation() {
-+	// Runtime translation file: one entry per line, "<english>\t<big5 bytes>".
-+	// TAB (0x09) and LF (0x0A) never occur inside Big5, so they are safe
-+	// delimiters. Human-maintained source is UTF-8; the build tool converts it
-+	// to this Big5 runtime form. Shipped in the game directory as CHT patch data.
-+	Common::File f;
-+	if (!f.open("translation.tsv"))
-+		return;
-+	int count = 0;
-+	while (!f.eos()) {
-+		Common::String line = f.readLine();
-+		if (line.empty())
-+			continue;
-+		const char *s = line.c_str();
-+		const char *tab = strchr(s, '\t');
-+		if (!tab || tab == s)
-+			continue;
-+		Common::String key(s, tab - s);
-+		Common::String val(tab + 1);
-+		if (val.empty())
-+			continue;
-+		// Unescape "\\n"->newline and "\\\\"->backslash (SCI0/EGA strings contain
-+		// hard line breaks, which cannot sit literally in a line-based TSV).
-+		_chtTranslation[unescapeCht(key)] = unescapeCht(val);
-+		++count;
-+	}
-+	debug(1, "CHT: loaded %d translation entries", count);
-+}
-+
- Common::Language SciEngine::getLanguage() const {
-+	// Traditional Chinese fan translation: allow forcing ZH_TWN via the target's
-+	// "language" config key (e.g. --language=zh_TW) so the CHT patch can be applied
-+	// on top of the original English game without a dedicated detection entry.
-+	if (ConfMan.hasKey("language")) {
-+		if (Common::parseLanguage(ConfMan.get("language")) == Common::ZH_TWN)
-+			return Common::ZH_TWN;
-+	}
- 	return _gameDescription->language;
- }
- 
-diff --git a/engines/sci/sci.h b/engines/sci/sci.h
-index d936170077..0ce3bb5df2 100644
---- a/engines/sci/sci.h
-+++ b/engines/sci/sci.h
-@@ -26,6 +26,8 @@
- #include "common/macresman.h"
- #include "common/util.h"
- #include "common/random.h"
-+#include "common/hashmap.h"
-+#include "common/hash-str.h"
- #include "sci/engine/vm_types.h"	// for Selector
- #include "sci/debug.h"	// for DebugState
- #include "sci/detection.h" // Shared code between detection and engine
-@@ -185,6 +187,15 @@ public:
- 	const char *getGameIdStr() const;
- 	Common::Language getLanguage() const;
- 
-+	/**
-+	 * Traditional Chinese fan-translation lookup. Returns the Big5-encoded
-+	 * translation for an original (English) on-screen string, or nullptr if
-+	 * there is none. Content-keyed so translations live in an external
-+	 * translation.tsv rather than patched SCI resources.
-+	 */
-+	const char *getChtTranslation(const char *original) const;
-+	void loadChtTranslation();
-+
- 	/**
- 	 * Returns true if the game's language direction is Right To Left.
- 	 * RTL support did not exist in the original SCI engine.
-@@ -406,6 +417,7 @@ private:
- 
- 	const ADGameDescription *_gameDescription;
- 	const SciGameId _gameId;
-+	Common::HashMap<Common::String, Common::String> _chtTranslation; /**< CHT: English -> Big5 */
- 	ResourceManager *_resMan; /**< The resource manager */
- 	ScriptPatcher *_scriptPatcher; /**< The script patcher */
- 	EngineState *_gamestate;
