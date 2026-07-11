@@ -93,3 +93,12 @@ LOGIC 對白 100% 譯完 ≠ 完整。玩家還會看到選單、道具欄、系
 - 獨立旗標 `_chtLangOn`（**別重用 `_chtEnabled`**，後者還牽動 hi-res 與 Big5 gate）。`getChtTranslation` 開頭 `if (!_chtEnabled || !_chtLangOn) return english;`。
 - F8 在 `AgiEngine::processScummVMEvents` 的 `EVENT_KEYDOWN` 攔截並消費（不 enqueue 給遊戲），僅 `chtEnabled` 時攔。
 - **當前訊息框原地即時重繪**：`TextMgr::messageBox` 入口快取英文原文+wanted 排版；F8 呼叫 `chtToggleRedraw()` → `drawMessageBox(getChtTranslation(原文))`。`drawMessageBox` 內部先 `closeWindow` 再畫，**可重入**。（SCI 端採「下一則生效」語意。）
+
+### 7.6 [HARD] systemui 硬寫 Big5 要 clang-safe（macOS CI 專屬雷）
+
+`systemui.cpp` 硬寫的 Big5 `\xNN` escape 在 **clang（macOS）** 上會炸、GCC(Linux)/mingw(Windows) 卻放過 → **本機測不出，只 macOS CI 爆**。
+
+- 症狀：`engines/agi/systemui.cpp:NNN: error: hex escape sequence out of range`。
+- 根因：clang 的 `\x` **貪婪吃後續所有 hex 數字**。中文逗號 `，`(=`\xA1\x41`) 直接接 `ESC`/`ENTER`（E 是 hex 字母）→ `\x41ESC` 讀成 `\x41E`(=0x41E>255)。
+- 修法：**字面值串接打斷** `"\xA1\x41" "ESC"`（相鄰字面值接合、**位元組完全相同、不加字**、GCC/clang/mingw 皆可）。通則：任何 `\xNN` 後緊接 `[0-9a-fA-F]` 處都插 `" "`。
+- 教訓：**引擎硬寫 Big5 / 加 C++20 語法後，第一條 macOS CI 一定實跑**（clang 比 GCC 嚴，見打包文件 §macOS）。修正 commit `b99bae1`；macOS CI run 通過（universal .app + dmg，含 MT-32 emulator）。
