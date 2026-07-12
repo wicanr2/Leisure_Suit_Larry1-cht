@@ -24,7 +24,9 @@ RUN curl -fsSL -o /tmp/SDL2-mingw.tar.gz \
  && rm -rf /tmp/SDL2-mingw.tar.gz /tmp/SDL2-${SDL2_VER}
 
 # --- zlib (原始碼交叉編譯,supply 給 scummvm 用) ---
-RUN curl -fsSL -o /tmp/zlib.tar.gz "https://zlib.net/fossils/zlib-${ZLIB_VER}.tar.gz" \
+# 用 madler/zlib 官方 GitHub release(zlib.net/fossils 對 CI runner 會回 HTTP 415);失敗再退回 zlib.net。
+RUN curl -fsSL -o /tmp/zlib.tar.gz "https://github.com/madler/zlib/releases/download/v${ZLIB_VER}/zlib-${ZLIB_VER}.tar.gz" \
+      || curl -fsSL -o /tmp/zlib.tar.gz "https://zlib.net/fossils/zlib-${ZLIB_VER}.tar.gz" \
  && mkdir -p /tmp/zlib && tar xf /tmp/zlib.tar.gz -C /tmp/zlib --strip-components=1 \
  && cd /tmp/zlib \
  && CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar RANLIB=x86_64-w64-mingw32-ranlib \
