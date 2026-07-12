@@ -1,0 +1,98 @@
+name: build-windows
+
+# 幻想空間(LSL1) 繁中化 — Windows x86_64 引擎(scummvm.exe + 執行期 DLL)。
+#
+# 產出「引擎包」artifact:scummvm.exe + SDL2.dll + libwinpthread-1.dll(不含遊戲資料/MT-32 ROM,
+# 版權與 patch-only 政策)。完整遊戲包由本機 tools/package_windows.sh 把此處(未來:已簽章)的 exe
+# 併入遊戲資料後組成,不上 GitHub。
+#
+# 目的:
+#  1) 讓 Windows 版跟 macOS 一樣有「可審核、可重現」的 CI 建置(SignPath OSS 簽章的前置條件)。
+#  2) 之後接 SignPath Foundation 簽章(見檔尾 sign job,核准後啟用)→ 解決 Defender 誤報。
+#
+# 建置環境用 repo 內 docker/Dockerfile.mingw(pinned SDL2/zlib),與本機打包完全相同的 toolchain,
+# 確保 CI 產的 exe 與本機同 profile(mingw-w64 posix threads,--disable-all-engines 只留 agi/sci)。
+# [HARD] 保留 MT-32 emu(不帶 --disable-mt32emu),符合本專案「ScummVM 中文化一律 enable MT-32」慣例。
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*-windows']
+
+jobs:
+  windows-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build mingw 交叉編譯環境(docker/Dockerfile.mingw,pinned SDL2/zlib)
+        run: docker build -t qfg1-mingw -f docker/Dockerfile.mingw docker
+
+      - name: 取得並 patch ScummVM(clone pinned commit + 套 0001/0002)
+        run: bash tools/apply_patches.sh "$RUNNER_TEMP/scummvm-win"
+
+      - name: configure + make scummvm.exe(容器內,與本機同 flag)
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$RUNNER_TEMP/scummvm-win:/src" -w /src qfg1-mingw bash -c '
+            set -euo pipefail
+            ./configure --host=x86_64-w64-mingw32 \
+              --disable-all-engines --enable-engine=agi --enable-engine=sci \
+              --disable-detection-full --enable-release
+            grep -q "^ENABLE_SCI" config.mk && grep -q "^ENABLE_AGI" config.mk \
+              || { echo "### agi/sci engine 未編入 ###"; exit 12; }
+            grep -q "^SDL_BACKEND = 1" config.mk || { echo "### SDL 未偵測到 ###"; exit 13; }
+            grep -q "^USE_MT32EMU" config.mk || echo "警告:MT-32 emu 未編入(檢查 configure 輸出)"
+            make -j"$(nproc)"
+            x86_64-w64-mingw32-strip scummvm.exe
+          '
+
+      - name: 收集引擎包(scummvm.exe + 執行期 DLL)
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/win-engine"
+          mkdir -p "$OUT"
+          cp "$RUNNER_TEMP/scummvm-win/scummvm.exe" "$OUT/"
+          docker run --rm qfg1-mingw cat /usr/x86_64-w64-mingw32/bin/SDL2.dll > "$OUT/SDL2.dll"
+          docker run --rm qfg1-mingw cat /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll > "$OUT/libwinpthread-1.dll"
+          ls -la "$OUT"
+          ( cd "$OUT" && sha256sum scummvm.exe SDL2.dll libwinpthread-1.dll > SHA256SUMS.txt && cat SHA256SUMS.txt )
+
+      - name: upload 引擎包 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsl1-cht-windows-x64-engine
+          path: ${{ runner.temp }}/win-engine
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # SignPath Foundation(OSS 免費簽章)— 核准並設定好 org/project/policy 後解除註解啟用。
+  # 前置:1) 專案通過 SignPath Foundation 審核 2) 於 repo secrets 設 SIGNPATH_API_TOKEN
+  #        3) 填入下方 organization-id / project-slug / signing-policy-slug。
+  # 之後每次 workflow_dispatch / tag 都會自動把 scummvm.exe 送去簽,回傳已簽章檔。
+  # 文件:https://about.signpath.io/documentation/github-actions
+  # ---------------------------------------------------------------------------
+  # sign-windows:
+  #   needs: windows-x64
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: 下載未簽章引擎包
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: lsl1-cht-windows-x64-engine
+  #         path: unsigned
+  #     - name: SignPath 簽章請求(僅簽 scummvm.exe)
+  #       uses: signpath/github-action-submit-signing-request@v1
+  #       with:
+  #         api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+  #         organization-id: '<SIGNPATH_ORG_ID>'
+  #         project-slug: 'Leisure_Suit_Larry1-cht'
+  #         signing-policy-slug: 'release-signing'
+  #         github-artifact-id: ${{ needs.windows-x64.outputs.artifact-id }}
+  #         wait-for-completion: true
+  #         output-artifact-directory: signed
+  #     - name: upload 已簽章引擎包
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: lsl1-cht-windows-x64-engine-signed
+  #         path: signed
