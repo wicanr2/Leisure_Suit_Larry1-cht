@@ -1,5 +1,5 @@
 diff --git a/engines/sci/event.cpp b/engines/sci/event.cpp
-index 145d32f18a..693c687b6a 100644
+index 145d32f18a..53c9aa9f85 100644
 --- a/engines/sci/event.cpp
 +++ b/engines/sci/event.cpp
 @@ -198,6 +198,21 @@ SciEvent EventManager::getScummVMEvent() {
@@ -24,7 +24,7 @@ index 145d32f18a..693c687b6a 100644
  	// SCI does not generate separate events for mouse movement (it puts the
  	// current mouse position on every event, including non-mouse events), so
  	// skip past all mousemove events in the event queue
-@@ -314,6 +329,14 @@ SciEvent EventManager::getScummVMEvent() {
+@@ -314,6 +329,23 @@ SciEvent EventManager::getScummVMEvent() {
  
  	const Common::KeyCode scummVMKeycode = ev.kbd.keycode;
  
@@ -33,6 +33,15 @@ index 145d32f18a..693c687b6a 100644
 +	if (g_sci->getLanguage() == Common::ZH_TWN && ev.type == Common::EVENT_KEYDOWN &&
 +		scummVMKeycode == Common::KEYCODE_F8) {
 +		g_sci->toggleChtLang();
++		return noEvent;
++	}
++
++	// 繁體中文化：Ctrl+Alt+X = 年齡驗證即時跳過（沿用自動作答機制答完當前年齡+問答，直接進遊戲）。
++	// 原版 LSL1 SCI 無此後門；此為中文化外掛，方便新玩家一鍵略過驗證。攔截後不傳給腳本。
++	if (g_sci->getLanguage() == Common::ZH_TWN && ev.type == Common::EVENT_KEYDOWN &&
++		scummVMKeycode == Common::KEYCODE_x &&
++		(ev.kbd.flags & Common::KBD_CTRL) && (ev.kbd.flags & Common::KBD_ALT)) {
++		g_sci->chtVerifySkipNow();
 +		return noEvent;
 +	}
 +
@@ -331,7 +340,7 @@ index 94d96a6e38..b4c689eb87 100644
  	graphics/fontsjis.o \
  	graphics/macfont.o \
 diff --git a/engines/sci/sci.cpp b/engines/sci/sci.cpp
-index b4d28b797c..181866155d 100644
+index b4d28b797c..bd76e71e50 100644
 --- a/engines/sci/sci.cpp
 +++ b/engines/sci/sci.cpp
 @@ -19,10 +19,14 @@
@@ -428,7 +437,7 @@ index b4d28b797c..181866155d 100644
  #ifdef ENABLE_SCI32
  	if (getSciVersion() >= SCI_VERSION_2) {
  		// SCI32 graphic objects creation
-@@ -831,7 +886,252 @@ const char *SciEngine::getGameIdStr() const {
+@@ -831,7 +886,296 @@ const char *SciEngine::getGameIdStr() const {
  	return _gameDescription->gameId;
  }
  
@@ -519,9 +528,11 @@ index b4d28b797c..181866155d 100644
 +
 +// Box 顯示文字時呼叫：若正在 room 720 且已通過，讀 L4 決定要送出的合成鍵。
 +void SciEngine::chtVerifyOnText(const char *text) {
-+	if (!_chtVerified || _chtVerifyDone || !_gamestate || !text)
++	if (!_gamestate || !text)
 +		return;
 +	if (_gamestate->currentRoomNumber() != 720)
++		return;
++	if (!_chtVerified || _chtVerifyDone)
 +		return;
 +	// 仍有鍵在佇列 → 上一則對話尚未處理完，先別重排（避免對同一對話重複作答）。
 +	if (_chtVerifyKeyHead < _chtVerifyKeyTail)
@@ -552,8 +563,50 @@ index b4d28b797c..181866155d 100644
 +		_chtVerifyLastId = l5;
 +		_chtVerifyKeyQueue[_chtVerifyKeyTail++] = 'a' + (l4 - 1);
 +		debug(1, "CHT: auto-answer Q (id=%d) → '%c'", l5, 'a' + (l4 - 1));
++	} else {
++		// L4=0 文字。以文字雜湊去重（同一畫面重繪不重按；不同畫面各自處理）。
++		size_t n = strlen(text);
++		if (n == 0)
++			return;   // 空白過場，不動作
++		uint32 hh = 5381;
++		for (const char *p = text; *p; ++p)
++			hh = hh * 33 + (byte)*p;
++		int16 sig = (int16)(1000 + (hh % 20000));   // 與 L5(<100)、年齡選單標記 40 不相碰
++		if (sig == _chtVerifyLastId)
++			return;
++		if (text[n - 1] == '?') {
++			// 「問句」（結尾 '?'，且已排除年齡選單）＝ 任意答案皆可的笑話題（如「幾個工程師才能換
++			// 一顆燈泡？」），遊戲不設正解（L4=0）→ 按 'a' 即過關。
++			_chtVerifyLastId = sig;
++			_chtVerifyKeyQueue[_chtVerifyKeyTail++] = 'a';
++			debug(1, "CHT: auto-answer joke Q (any answer) → 'a'");
++		}
++		// 其餘 L4=0 非問句文字（片頭/答題間過場/選項回顯）不注入：過場會自行前進、片頭交玩家推進。
 +	}
-+	// 其餘 L4=0 文字（片頭/警告/選項回顯）不主動注入，避免誤選年齡選單焦點格。
++}
++
++// Ctrl+Alt+X：一鍵略過驗證，直接跳到遊戲開始（room 100）。不逐題模擬作答——驗證場景題型繁多
++// （常識/笑話/手冊防拷），直接跳場最單純可靠。用 ScummVM 除錯器 "room" 指令的同一機制。
++void SciEngine::chtVerifySkipNow() {
++	if (getLanguage() != Common::ZH_TWN || !_gamestate)
++		return;
++	if (_gamestate->currentRoomNumber() != 720)
++		return;   // 僅在年齡驗證室（room 720）生效
++	// 直接把遊戲場景切到 room 100（賴瑞站在老左酒吧外的開場），繞過整個年齡/問答驗證。
++	// 這是 ScummVM 除錯器 "room" 指令用的同一機制（setRoomNumber 寫 newRoom 全域，主迴圈換場）。
++	// 不再逐題模擬作答——驗證場景題型繁多（常識/笑話/手冊防拷），直接跳場最單純可靠。
++	_chtVerified = true;
++	_chtVerifyDone = true;      // 本次啟動不再自動作答（已跳場）
++	chtMarkVerified();          // 寫 .chtok 旗標：之後開機自動略過驗證
++	_gamestate->setRoomNumber(100);
++	// 清掉驗證室殘留的對話框 window（年齡選單等）——沿用 restore 路徑的做法，否則會疊在
++	// room 100 畫面上。reset() 釋放 _picWind 以外所有 window。
++	if (_gfxPorts)
++		_gfxPorts->reset();
++	// 打斷驗證控制項的 VM 等待迴圈：kAbortLoadGame 會 unwind 後呼叫遊戲 replay，進入
++	// currentRoomNumber()（＝剛設的 100）——等同「在年齡選單時載入存檔」的恢復路徑。
++	_gamestate->abortScriptProcessing = kAbortLoadGame;
++	debug(1, "CHT: Ctrl+Alt+X → 直接跳到遊戲開始（room 100），略過驗證");
 +}
 +
 +static Common::String unescapeCht(const Common::String &in) {
@@ -682,7 +735,7 @@ index b4d28b797c..181866155d 100644
  }
  
 diff --git a/engines/sci/sci.h b/engines/sci/sci.h
-index d936170077..efa54ba7ce 100644
+index d936170077..d5217a3529 100644
 --- a/engines/sci/sci.h
 +++ b/engines/sci/sci.h
 @@ -26,6 +26,8 @@
@@ -694,7 +747,7 @@ index d936170077..efa54ba7ce 100644
  #include "sci/engine/vm_types.h"	// for Selector
  #include "sci/debug.h"	// for DebugState
  #include "sci/detection.h" // Shared code between detection and engine
-@@ -185,6 +187,34 @@ public:
+@@ -185,6 +187,35 @@ public:
  	const char *getGameIdStr() const;
  	Common::Language getLanguage() const;
  
@@ -721,7 +774,8 @@ index d936170077..efa54ba7ce 100644
 +	bool chtVerified() const { return _chtVerified; }
 +	void chtLoadVerifiedState();          // 啟動時：有存檔或 .chtok 旗標檔 → 設 _chtVerified
 +	void chtMarkVerified();               // 離開 room 720 → 寫 .chtok 旗標檔
-+	void chtVerifyOnText(const char *text); // Box 顯示對話時偵測驗證畫面 → 排入自動導覽
++	void chtVerifyOnText(const char *text); // Box 顯示對話時偵測驗證畫面 → 排入自動導覽（flag 模式，保留片頭）
++	void chtVerifySkipNow();              // Ctrl+Alt+X：一鍵略過驗證（踢當前年齡選單 + 啟用自動作答）
 +	// 事件層取用：待送出的合成鍵（0=無）。回傳後清空計數。
 +	int  chtVerifyPendingKey();           // 下一個要注入的 SCI 鍵碼（TAB/ENTER），無則 0
 +	void chtVerifyRoomTick();             // 每輪檢查是否已離開 room 720 → 標記完成
@@ -729,7 +783,7 @@ index d936170077..efa54ba7ce 100644
  	/**
  	 * Returns true if the game's language direction is Right To Left.
  	 * RTL support did not exist in the original SCI engine.
-@@ -406,6 +436,25 @@ private:
+@@ -406,6 +437,25 @@ private:
  
  	const ADGameDescription *_gameDescription;
  	const SciGameId _gameId;

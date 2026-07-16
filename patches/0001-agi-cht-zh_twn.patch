@@ -34,7 +34,7 @@ index b3ced461ee..9e01827992 100644
  	AgiLoader *_loader;
  	GfxMenu *_menu;
 diff --git a/engines/agi/cycle.cpp b/engines/agi/cycle.cpp
-index 81421b47a4..eedd53937d 100644
+index 81421b47a4..930db287b4 100644
 --- a/engines/agi/cycle.cpp
 +++ b/engines/agi/cycle.cpp
 @@ -20,6 +20,7 @@
@@ -57,10 +57,12 @@ index 81421b47a4..eedd53937d 100644
  	ScreenObjEntry *screenObjEgo = &_game.screenObjTable[SCREENOBJECTS_EGO_ENTRY];
  
  	// Loading trigger
-@@ -157,6 +163,16 @@ void AgiEngine::resetControllers() {
+@@ -157,6 +163,18 @@ void AgiEngine::resetControllers() {
  void AgiEngine::interpretCycle() {
  	ScreenObjEntry *screenObjEgo = &_game.screenObjTable[SCREENOBJECTS_EGO_ENTRY];
  
++	// 繁體中文化：Ctrl+Alt+X 一鍵略過驗證 → 直接換到遊戲開場（room 11，賴瑞在老左酒吧外），
++	// 繞過年齡+問答。在 runLogic 前於安全點換場；並寫 flag，之後開機自動略過。不逐題模擬作答。
 +	// 繁體中文化：已驗證則自動答年齡問答。room 6=驗證室；v96=題號、v93=正解(1-4→a/b/c/d)。
 +	// 在 runLogic 前把正解鍵塞進佇列，controller 於本 cycle 就能捕捉；用 v96 去重避免重覆送。
 +	if (_chtVerified && getVar(VM_VAR_CURRENT_ROOM) == 6) {
@@ -74,7 +76,7 @@ index 81421b47a4..eedd53937d 100644
  	if (!_game.playerControl)
  		setVar(VM_VAR_EGO_DIRECTION, screenObjEgo->direction);
  	else
-@@ -210,6 +226,35 @@ void AgiEngine::interpretCycle() {
+@@ -210,6 +228,35 @@ void AgiEngine::interpretCycle() {
  	//_gfx->doUpdate();
  }
  
@@ -348,10 +350,10 @@ index 320019fa50..2eed38755a 100644
  	void deinitVideo();
  	static void initPalette(uint8 *destPalette, const uint8 *paletteData, uint colorCount = 16, uint fromBits = 6, uint toBits = 8);
 diff --git a/engines/agi/keyboard.cpp b/engines/agi/keyboard.cpp
-index 3c19773ee8..f8e2c9b201 100644
+index 3c19773ee8..30c44ef88b 100644
 --- a/engines/agi/keyboard.cpp
 +++ b/engines/agi/keyboard.cpp
-@@ -130,6 +130,13 @@ void AgiEngine::processScummVMEvents() {
+@@ -130,6 +130,31 @@ void AgiEngine::processScummVMEvents() {
  			}
  			break;
  		case Common::EVENT_KEYDOWN:
@@ -360,6 +362,24 @@ index 3c19773ee8..f8e2c9b201 100644
 +			if (_gfx->chtEnabled() && event.kbd.keycode == Common::KEYCODE_F8) {
 +				_gfx->toggleChtLang();
 +				_text->chtToggleRedraw();
++				break;
++			}
++			// 繁體中文化：Ctrl+Alt+X = 年齡驗證即時跳過。在驗證室（room 6）直接跳到遊戲開始
++			// （room 11，賴瑞在老左酒吧外），繞過年齡+問答。設 pending 旗標並打斷當前輸入內迴圈
++			// （年齡輸入 getstring / 問答 havekey），讓 interpretCycle 換場立即生效。
++			if (_gfx->chtEnabled() && event.kbd.keycode == Common::KEYCODE_x &&
++			    (event.kbd.flags & Common::KBD_CTRL) && (event.kbd.flags & Common::KBD_ALT)) {
++				// Ctrl+Alt+X = 一鍵略過驗證，直接換到遊戲開場（room 11，賴瑞在老左酒吧外）。
++				// 只在驗證室（room 6）動作；一律攔截消化，避免 'x' 漏進遊戲 parser 輸入列。
++				if (getVar(VM_VAR_CURRENT_ROOM) == 6) {
++					// 比照 restore 從 inner loop 直接動手：關訊息框 → 中止當前 logic 與 inner loop → newRoom。
++					_chtVerified = true;
++					chtMarkVerified();            // 寫 flag，之後開機自動略過
++					_text->closeWindow();         // 關掉年齡提示訊息框
++					_game.exitAllLogics = true;   // 中止驗證室 logic（空年齡不被當答案）
++					cycleInnerLoopInactive();     // 打斷當前輸入內迴圈
++					newRoom(11);                  // 直接進遊戲開場
++				}
 +				break;
 +			}
  			key = event.kbd.ascii;
