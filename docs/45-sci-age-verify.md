@@ -89,9 +89,36 @@ if (getLanguage()==ZH_TWN && chtVerified()) {
 
 預置 `.chtok` → autostart：log 顯示年齡選單 `TAB×3` → 6 題問答每題 `Correct` → `left age-verify room 720 → now room 100`（Lefty's 酒吧外開場）→ 寫旗標。反向（無旗標）：無 `auto-answer`，正常提示。截圖見 `docs/screenshot-vga-age-select-cht.png`。
 
-## 7. 沿用到其他 SCI 遊戲的通則
+## 7. Ctrl+Alt+X 一鍵略過（第一性原理：跳門，不答題）
 
-1. **問答式防拷幾乎都把正解存在某個 script local**——先 dump 題庫資源看格式（常是「首字元/首欄=答案」），再用 `Box()` probe 對照 room script 的 locals 找出是哪一格。
-2. **輸入方式看畫面提示**（"TAB to select" vs 字母選項 vs 直接按鍵），別假設統一。
-3. **合成鍵在 `getScummVMEvent` 事件輪詢前注入** → 優先於玩家，且與 `Box()` 偵測同步無空窗。
-4. **判定用存檔＋旗標檔雙保險**，離開驗證 room 寫旗標，涵蓋首次手動通過。
+上面的自動作答（flag 模式）保留片頭、逐題答對——但要**當場一鍵略過**時，逐題模擬會撞上題型繁多的坑
+（常識題 TAB/字母、笑話題 `local[4]=0` 任意答案、手冊防拷題、各種過場需不同推進）。
+
+**第一性原理**：年齡/密碼驗證只是一道「門」，把玩家擋在起始房間外。與其逐題答對，不如**直接跳到門後的
+起始房間**（room 100，賴瑞在老左酒吧外）。這才是最單純可靠的解。
+
+`chtVerifySkipNow()`（`sci.cpp`），在 room 720 按 Ctrl+Alt+X 時：
+```cpp
+_gamestate->setRoomNumber(100);                       // 除錯器 "room" 指令的同一機制（寫 newRoom 全域）
+_gfxPorts->reset();                                    // 清掉殘留的年齡選單對話框 window（同 restore 路徑）
+_gamestate->abortScriptProcessing = kAbortLoadGame;   // 打斷驗證控制項的 VM 等待迴圈 → 走 replay 恢復路徑
+```
+- **為何要 abort**：年齡選單/問答是在 VM 裡跑 event 阻塞迴圈等答案，光設 `setRoomNumber` 不會打斷它。
+  `kAbortLoadGame` 會 unwind VM 後呼叫遊戲 `replay`（＝「在選單時載入存檔」的恢復路徑），進入
+  `currentRoomNumber()`（＝剛設的 100）。
+- **為何要 `_gfxPorts->reset()`**：abort 沒 dispose 年齡選單的對話框 window，會疊在 room 100 上。
+  這正是 restore 路徑（`savegame.cpp`）清殘留 window 的同一招。
+- 事件層攔截 `KEYCODE_x + KBD_CTRL + KBD_ALT`（在 F8 handler 之後）。原版 LSL1 SCI 無此後門，此為中文化外掛。
+
+EGA/AGI 同理（見 `docs/40-agi-track.md`）：攔截 Ctrl+Alt+X，room 6 → `closeWindow` + `exitAllLogics`
++ `cycleInnerLoopInactive` + `newRoom(11)`（比照 AGI restore 從 inner loop 直接換場）。
+
+## 8. 沿用到其他 SCI/AGI 遊戲的通則
+
+1. **要「跳過」一道 gate/防拷，優先想「直接換到門後房間」，別逐題模擬作答**——用引擎內建的
+   除錯器換場 / restore 恢復機制（SCI `setRoomNumber`+`kAbortLoadGame`+`_gfxPorts->reset()`；
+   AGI `newRoom`+`exitAllLogics`+`closeWindow`+`cycleInnerLoopInactive`）。第一性原理省下大量特例。
+2. **若真要逐題自動作答**（保留片頭的「一次通過永久免答」）：問答式防拷幾乎都把正解存在某個 script local
+   ——先 dump 題庫資源看格式（常是「首字元/首欄=答案」），再用 `Box()` probe 對照 room script 的 locals 找哪一格；
+   輸入方式看畫面提示（TAB 選單 vs 字母 vs 直接按鍵）別假設統一；合成鍵在 `getScummVMEvent` 輪詢前注入以優先於玩家；
+   判定用存檔＋旗標檔雙保險。**笑話題（任意答案、`local[4]=0`）要偵測問句結尾 `?` 按 'a' 過關，否則卡死。**
